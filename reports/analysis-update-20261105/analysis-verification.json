@@ -1,0 +1,12 @@
+{
+  "status": "passed",
+  "report": "reports/analysis/runs/20261105T102226Z-307e77",
+  "words_explained": 10,
+  "neighbor_rows": 100,
+  "word_pairs_verified": 20,
+  "source_excerpts_verified": 26,
+  "case_count": 3,
+  "case_scores_verified": 39,
+  "zip_matches_report_and_data": true,
+  "report_sha256": "7f71c8f7e407b445ea2c4f4b9a14865009f48cbdbefdff24df7da96af7f356e8"
+}

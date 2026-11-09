@@ -1,0 +1,6 @@
+{
+  "model_manifest_sha256": "fc7753bf476b9384afe4fe0a46fc02281faaca9830aab1b6a01b6bcbdbbb6845",
+  "neighbors_sha256": "e9ebb16994f0a8440cc08cd40478ea78c6fb3964560c742a0d30e0dc101a2228",
+  "analysis_sha256": "e2347d5842f925da12fe8f3fa44ac268eba5a443ffb99b5a47a50b7d2a133959",
+  "source": "Saved model results and train-only corpus counts/context; explanatory inferences, not manual relevance judgments."
+}

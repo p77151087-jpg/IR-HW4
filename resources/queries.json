@@ -1,0 +1,16 @@
+{
+  "source": "Course topic descriptions; fixed before training and retrieval evaluation; not tuned on test results.",
+  "relevance": "Binary topic proxy: relevant iff the query's target topic is in a test document's original TOPICS elements.",
+  "queries": [
+    {"qid": "Q01", "topic": "earn", "text": "corporate profit earnings", "intent": "企業獲利與盈餘"},
+    {"qid": "Q02", "topic": "earn", "text": "quarterly net income", "intent": "季度淨收益"},
+    {"qid": "Q03", "topic": "acq", "text": "company acquisition merger", "intent": "企業收購與合併"},
+    {"qid": "Q04", "topic": "acq", "text": "takeover bid shares", "intent": "收購要約與股權"},
+    {"qid": "Q05", "topic": "crude", "text": "crude oil production", "intent": "原油生產"},
+    {"qid": "Q06", "topic": "crude", "text": "petroleum output prices", "intent": "石油產出與價格"},
+    {"qid": "Q07", "topic": "grain", "text": "grain wheat corn", "intent": "穀物、小麥與玉米"},
+    {"qid": "Q08", "topic": "grain", "text": "wheat grain exports", "intent": "小麥與穀物出口"},
+    {"qid": "Q09", "topic": "trade", "text": "international trade deficit", "intent": "國際貿易逆差"},
+    {"qid": "Q10", "topic": "trade", "text": "import export trade", "intent": "進出口貿易"}
+  ]
+}

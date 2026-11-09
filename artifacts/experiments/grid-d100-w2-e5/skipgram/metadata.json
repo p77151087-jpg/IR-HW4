@@ -1,0 +1,29 @@
+{
+  "architecture": "Skip-Gram",
+  "config": {
+    "vector_size": 100,
+    "window": 2,
+    "min_count": 2,
+    "epochs": 5,
+    "seed": 42,
+    "workers": 1,
+    "sg": 1,
+    "negative": 5,
+    "sample": 0.001,
+    "ns_exponent": 0.75,
+    "alpha": 0.025,
+    "min_alpha": 0.0001,
+    "cbow_mean": 1,
+    "sorted_vocab": 1,
+    "shrink_windows": true
+  },
+  "vocabulary": 23172,
+  "seconds": 12.569827200146392,
+  "initial_vectors_sha256": "668c55086fccf34a489fabe83b3b75069e09cef733df952d1c565dbeb81c8d96",
+  "offline_reload_exact": true,
+  "train_documents": 9603,
+  "test_documents_used_for_training": 0,
+  "effective_training_words_all_epochs": 3961094,
+  "raw_training_words_all_epochs": 4442015,
+  "initialization": "Fresh Word2Vec trained on the verified train-only sentence sequences."
+}

@@ -1,0 +1,9 @@
+streamlit==1.66.0
+altair==6.3.0
+regex==2026.9.29
+gensim==4.4.0
+numpy==2.5.4
+scipy==1.18.1
+pandas==3.0.6
+scikit-learn==1.9.1
+pytest==9.1.1

@@ -1,0 +1,67 @@
+{
+  "status": "complete",
+  "completed_at_utc": "2026-11-05T09:32:43.574006+00:00",
+  "pages": [
+    "資料概況",
+    "詞向量分析",
+    "新聞搜尋與比較",
+    "效果評估"
+  ],
+  "url": "http://127.0.0.1:8504",
+  "python": "3.12.14 (main, Aug 25 2026, 14:01:42) [MSC v.1944 64 bit (AMD64)]",
+  "source_sha256": {
+    "ir_hw4/__init__.py": "357bde2bf0ee20aa6f9f471f10fff2b4f34616c924c5b73176b09fc7b656e6e5",
+    "ir_hw4/cli.py": "fd18656bd464f80d2b2621d1a2c14ffa354597bb3ed55cb8ebf6bd1b159e1a32",
+    "ir_hw4/config.py": "c59eb754f523c16c887a9a4d8db3970d0fdcb5c05efc687c5ce84e3ae27c0361",
+    "ir_hw4/dataset.py": "d59bf9f94567c598d61d0ff18f2fbf1e4198f822f1179a41ba995df36fa61e35",
+    "ir_hw4/evaluation.py": "d213ab0fce43b4497d89fe54129841f464b60932ae77b4f3ba08d1482e8bee34",
+    "ir_hw4/io.py": "8684406756918af1bd1346eb21adfd707a05f2c48f78d8395a3a98659ab2cee3",
+    "ir_hw4/retrieval.py": "de9481e225746d8dd67e6e27a24a44dfce43b5380563916a6ca2b26faaf1cbc4",
+    "ir_hw4/sentences.py": "48f18892b890020935f4921b5efd9af6dee790209b938e1c84406c68f11223e6",
+    "ir_hw4/text.py": "e3d6c15b9648ecf46eb71502db228fd8942ac42a7e915f4333ff1508fbf6c8ed",
+    "ir_hw4/training.py": "5000bbb5d414e34356976756aed1d8c3e14684db7f61cb1989b0cc47cb135cfd",
+    "ir_hw4/ui.py": "fbc24fe7fc4ff1aa20356b64c95d53b062eb928ac257bbb79aa736b6fe2a3088",
+    "ir_hw4/validation.py": "f897f673274802d2c97e71e01624a8f24b570a523bda43ff02e3dff974ce63cb",
+    "scripts/setup_hw4.ps1": "a06ee114c27ce4802268c4ad05364d728b5b2411814d7d7ac3faafdf17ca3812",
+    "scripts/start_hw4.ps1": "ceb21297398dc38fbcbaa7412f9bbbd0f165c7e7eacd47e9186882b3b9b13f42",
+    "scripts/stop_hw4.ps1": "2b11c3cd53ffe5031a25274700802129d536648e0cadcce78a02c35df932f3ae",
+    "scripts/test_hw4.ps1": "ac362d241eab78902327b8b1c5fa8ea34711403ad68bed6a31614aacee7604ea",
+    "scripts/verify_hw4.py": "cd0527e9998c92a048d47a9bdb3ac8e73163452a10d85e1829575a14b2618806",
+    "tests/test_app.py": "3b6a33abac9fe86d01bdb2232fcae45ed16b5ca5aa16a562bc22dc2df659d830",
+    "tests/test_core.py": "ea207051a889fbc788c0da3eb43119a2440b93ac96493ec0743553c9eed23d29",
+    "resources/queries.json": "e015279ac6d2b67545c3a511283fe12fdd180409fc31bddecbe82215ad21ccb7",
+    "resources/stopwords.json": "d907482b2aabc0443ae05c95e0c9685ef6f8ff8789370a34c004a498d1abc406"
+  },
+  "model_manifest_sha256": "fc7753bf476b9384afe4fe0a46fc02281faaca9830aab1b6a01b6bcbdbbb6845",
+  "evaluation_manifest_sha256": "ed65f01de38f0d808fe75b877b735b193459cd992bac0a355fed1b3cce3945cd",
+  "numerical_verification_sha256": "ca56890a4e0a3dc0981542d3240778fbe60e17a90ec0d247d48d60867ef367c9",
+  "pytest_sha256": "d2fc4ed14e02700f58a2b2829b1b617491e7339145b45f7ece228595af9945c9",
+  "tests_passed": 23,
+  "hw3_protection": {
+    "status": "unchanged",
+    "protected_files": 1469,
+    "changed": [],
+    "excluded": [
+      ".git",
+      ".venv",
+      ".pytest_cache",
+      "__pycache__",
+      "tmp",
+      "*.log"
+    ],
+    "checked_at_utc": "2026-11-05T09:32:43.486673+00:00"
+  },
+  "manual_browser_checks": [
+    "Four pages rendered",
+    "CBOW and Skip-Gram Top5 rendered",
+    "PCA and original cosine displayed",
+    "News full text displayed",
+    "Evaluation average, signed deltas and 10/10 denominator displayed",
+    "Narrow viewport stacks content"
+  ],
+  "service_checks": [
+    "stop releases 8504",
+    "restart health 200",
+    "repeated start reuses this project service"
+  ]
+}

@@ -1,0 +1,30 @@
+{
+  "version": 1,
+  "status": "complete",
+  "created_at_utc": "2026-11-05T10:22:26.824924+00:00",
+  "model_manifest_sha256": "fc7753bf476b9384afe4fe0a46fc02281faaca9830aab1b6a01b6bcbdbbb6845",
+  "evaluation_manifest_sha256": "ed65f01de38f0d808fe75b877b735b193459cd992bac0a355fed1b3cce3945cd",
+  "queries_sha256": "e015279ac6d2b67545c3a511283fe12fdd180409fc31bddecbe82215ad21ccb7",
+  "corpus_sha256": "e086d597efcc71d9399414c7264cece1d285ebdda65619d33b882cccced3408f",
+  "source_sha256": {
+    "ir_hw4/analysis.py": "d5a5760a24ccabddd9055e417ce7b6d17a31736a4a0bcd1320b01f4de7587e74",
+    "resources/analysis_notes.json": "07bb77dbbcf6b607441ecacc14a796671ea876d1eeb3d28433eb1c6b2adf76b2"
+  },
+  "word_count": 10,
+  "case_qids": [
+    "Q06",
+    "Q09",
+    "Q01"
+  ],
+  "interpretation_policy": "本次固定模型的分析推論，非逐篇人工相關性標註。數據與原文另列為可核對證據；不以文件共現直接證明詞義或訓練窗口內共現，不修改查詢、topics 或既有排名。",
+  "artifacts_sha256": {
+    "analysis.json": "a83f689d425813917d76486be96bb241241311092467b044afe88f482f89a212",
+    "HW4_REPORT.md": "7f71c8f7e407b445ea2c4f4b9a14865009f48cbdbefdff24df7da96af7f356e8",
+    "HW4_REPORT.zip": "64827ec9b0716692b5874443e28d74b60b750b31a2ef14a77bd9b8746ef24cf6",
+    "metrics_per_query.csv": "f1147a3fda2f7edc913e57220de10152c307c9b138244f94c293eaaebbbbf6f2",
+    "metrics_summary.csv": "9b9ecff70a925681a693bb733e0a80ffe3e07a06868c774c309e546275fc5d61",
+    "queries.json": "ac425670035e15579c825d70b18c60d8ab5c40ee87f7a263ef4c65f352f40ede",
+    "sources.json": "bf118736c5ce9475985d03fdf5f870b11cbe64ace0ec19df124cb01ecc524bb3",
+    "word_neighbors.csv": "e9ebb16994f0a8440cc08cd40478ea78c6fb3964560c742a0d30e0dc101a2228"
+  }
+}

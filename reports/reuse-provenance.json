@@ -1,0 +1,18 @@
+{
+  "source_root": "C:\\成大專案\\IR-HW3",
+  "policy": "Read-only reuse; independent local modules and virtual environment; no runtime dependency on HW3 or HW2.",
+  "reused": {
+    "resources/stopwords.json": "Identical frozen list",
+    "ir_hw4/sentences.py": "Sentence splitter copied with local SentenceSpan import",
+    "ir_hw4/text.py": "Adapted Unicode tokenizer and normalization, no stemming dependency",
+    "ir_hw4/training.py": "Adapted fresh Gensim training and persistence pattern",
+    "ir_hw4/evaluation.py": "Reimplemented ranking metrics against topic labels"
+  },
+  "reference_sha256": {
+    "resources/stopwords.json": "d907482b2aabc0443ae05c95e0c9685ef6f8ff8789370a34c004a498d1abc406",
+    "ir_hw3/association_sentences.py": "1a1e30239b7f5510bda7d3701692058c92e18f5813d62dc869d687d3134412d5",
+    "ir_hw1/preprocessing.py": "f7108e87d1c19c43e012836adcb6d8b429e4d06c5cdc2bead4a06f71f04919c2",
+    "ir_hw3/embedding_training.py": "d53a4b63f70830c95ef39404d687aa4135961d0dcdc98ed340c1f35be6c45ce8",
+    "ir_hw3/evaluation.py": "0be10ff7a0b4d59b0e471a4c8a5d669df52e38a065384aac108781ae3e3e68f1"
+  }
+}

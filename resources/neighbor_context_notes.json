@@ -1,0 +1,101 @@
+{
+  "corpus_sha256": "e086d597efcc71d9399414c7264cece1d285ebdda65619d33b882cccced3408f",
+  "words": {
+    "profit": {
+      "pre-tax": {"relation": "稅前獲利", "reading": "財報用 pre-tax profit 指扣稅前的獲利。", "questions": ["reasonable"], "news": "949"},
+      "turnover": {"relation": "營收與獲利", "reading": "收購報導並列 Wallco 的營收與稅前獲利，兩詞是衡量經營表現的不同指標。", "questions": ["reasonable", "context"], "news": "334"}
+    },
+    "loss": {
+      "276.4": {"relation": "財報虧損金額", "reading": "Sulpetro 的年度淨虧損是 276.4 百萬美元。這個近鄰是財報數值，可能反映金額反覆出現在虧損後的寫法。", "questions": ["context", "unexpected"], "news": "8039"},
+      "453": {"relation": "財報金額片段", "reading": "財報列出的淨虧損是 1,364,453，切詞後末三位成為 453。財報金額的寫法可能讓數字片段排到 loss 附近。", "questions": ["context", "unexpected"], "news": "9965"},
+      "933": {"relation": "財報金額片段", "reading": "Alfin 財報把本期虧損與前期獲利 933,000 並列，切詞後留下 933。這種損益比較格式可能影響近鄰排名。", "questions": ["context", "unexpected"], "news": "2866"},
+      "yr-ago": {"relation": "去年同期損益", "reading": "財報用 yr-ago loss 指去年同期的虧損，常放在本期與前期的比較中。", "questions": ["reasonable", "context"], "news": "140"}
+    },
+    "earnings": {
+      "audited": {"relation": "經查核的獲利", "reading": "Union Carbide 的財報用 audited net earnings 指會計查核後的淨利。", "questions": ["reasonable"], "news": "2428"},
+      "re-classification": {
+        "relation": "貸款重新分類與銀行盈餘",
+        "reading": "原文談銀行把部分貸款改列為不再計息，也討論貸款的處理方式對銀行盈餘的影響。",
+        "questions": ["context"],
+        "news": "4969",
+        "context_readings": {
+          "third": "第一句的 third quarter 指第三季。第二句的 a third of the loans 指三分之一的貸款。",
+          "expects": "第一句預期季度盈餘上升。第二句預期部分貸款會被重新分類。"
+        }
+      },
+      "rentcorp": {
+        "relation": "公司專名",
+        "meaning": "McGrath RentCorp 的公司名片段。",
+        "surprise": "查找「盈餘」的近鄰時，通常會預期看到淨利、獲利等財務詞，這裡卻出現一家特定公司的名字。",
+        "reading": "這篇新聞報導 McGrath RentCorp 預期每股盈餘上升。",
+        "questions": ["unexpected"],
+        "news": "2560"
+      },
+      "thrid": {
+        "relation": "疑似原文拼字錯誤",
+        "meaning": "原文的 thrid 很可能是 third（第三）的拼字錯誤。",
+        "surprise": "原文的一個疑似錯字排進了「盈餘」的相似度前五名。",
+        "reading": "報導談延後出貨會減少第三季的營收和盈餘，原文將 third quarter 寫成 thrid quarter。",
+        "questions": ["unexpected"],
+        "news": "10096"
+      },
+      "graff": {
+        "relation": "財務主管人名",
+        "meaning": "International Totalizator Systems 財務副總裁 Joel Graff 的姓。",
+        "surprise": "「盈餘」的前五名裡出現了單一報導中受訪者的姓氏。",
+        "reading": "原文引用 Graff 的話，他認為公司的投資有望帶動未來成長和盈餘。",
+        "questions": ["unexpected"],
+        "news": "2729"
+      },
+      "telxon": {
+        "relation": "公司專名",
+        "meaning": "公司名稱 Telxon。",
+        "surprise": "在和「盈餘」相近的財務詞之間，一家特定公司的名字排進前五名。",
+        "reading": "這篇新聞在同一句交代 Telxon 預估的第四季每股盈餘與營收。",
+        "questions": ["unexpected"],
+        "news": "1339"
+      }
+    },
+    "acquisition": {
+      "acquiring": {"relation": "收購與買方", "reading": "股東權利計畫用 acquisition 指收購事件，用 acquiring entity 指進行收購的一方。", "questions": ["reasonable", "context"], "news": "2470"}
+    },
+    "merger": {
+      "comdata": {"relation": "合併案公司名", "reading": "新聞標題指出 Comdata 簽有合併協議。特定合併事件可能把這個公司名帶到 merger 附近。", "questions": ["context", "unexpected"], "news": "2080"},
+      "norstar": {"relation": "合併案公司名", "reading": "Norstar 與 Fleet 的合併消息列出 Norstar 股東可換得的股份。Norstar 是該合併案的一方。", "questions": ["reasonable", "context"], "news": "6675"}
+    },
+    "oil": {
+      "barrel": {"relation": "原油計價單位", "reading": "原油合約降價新聞用 a barrel 表示每桶，barrel 是石油交易的計量單位。", "questions": ["reasonable", "context"], "news": "127"},
+      "copper": {"relation": "出口商品價格", "reading": "同一篇出口報導分別提到銅價與油價下跌，兩詞可能因商品價格與出口收入的報導而靠近。", "questions": ["context", "unexpected"], "news": "1552"},
+      "energy": {"relation": "能源與油市", "reading": "OPEC 報導引述能源政策中心研究者談石油需求。energy 指研究領域，oil 指報導所討論的商品。", "questions": ["reasonable", "context"], "news": "144"},
+      "exploration": {"relation": "石油勘探", "reading": "美國石油儲量報導提到 oil exploration and development，也就是石油勘探與開發。", "questions": ["reasonable", "context"], "news": "489"},
+      "fuel": {"relation": "燃料油搭配", "reading": "日本物價新聞把 fuel oil 列為消費支出項目，兩詞在這裡組成燃料油的名稱。", "questions": ["reasonable"], "news": "213"},
+      "gasoline": {"relation": "油品庫存", "reading": "美國石油業週報同時報告汽油和原油庫存。兩詞指不同油品，在庫存新聞中並列。", "questions": ["reasonable", "context"], "news": "1343"},
+      "olein": {"relation": "食用棕櫚油", "reading": "印度植物油採購新聞提到 palm olein。這是棕櫚油的液態分提產品，對應 oil 的食用油語境。", "questions": ["reasonable", "context", "unexpected"], "news": "320"},
+      "onshore": {"relation": "陸上採油", "reading": "加州報導提到 drilling for oil onshore，onshore 指石油鑽探位於陸地。", "questions": ["reasonable", "context"], "news": "1616"},
+      "palm": {"relation": "棕櫚油搭配", "reading": "印尼農業報導提到 palm oil 的產量，palm 說明這裡談的是棕櫚油。", "questions": ["reasonable", "context", "unexpected"], "news": "235"},
+      "pipeline": {"relation": "輸油設施", "reading": "港口因大浪關閉的新聞提到 oil pipeline terminal，pipeline 指輸送石油的管線。", "questions": ["reasonable", "context"], "news": "2187"},
+      "postings": {"relation": "原油牌價", "reading": "Texaco Canada 的報導用 crude oil postings 指公司公布的原油收購牌價。", "questions": ["reasonable", "context"], "news": "191"},
+      "repaired": {"relation": "油管維修與出口", "reading": "厄瓜多因輸油管維修而減少石油出口收入。repaired 描述管線維修，可能因這起事件的報導而靠近 oil。", "questions": ["context", "unexpected"], "news": "3594"}
+    },
+    "petroleum": {
+      "cooper": {"relation": "油氣盆地地名", "reading": "報導提到 Delhi Petroleum 投資 Cooper 和 Eromanga 盆地的天然氣與液態烴項目。Cooper 是產區地名。", "questions": ["context", "unexpected"], "news": "11177"},
+      "crude": {"relation": "原油與石油產品", "reading": "沙烏地油市報導同時討論原油售價和石油產品的需求。crude 指原油。", "questions": ["reasonable", "context"], "news": "273"},
+      "exploration": {"relation": "油氣勘探投資", "reading": "巴布亞紐幾內亞的資源投資報導指出勘探公司的經費流向礦業與石油項目。", "questions": ["reasonable", "context"], "news": "1948"},
+      "exxon": {"relation": "石油公司與煉油", "reading": "石油業刊物報導 Exxon 評估關閉煉油廠。公司名和 petroleum 都出現在煉油業新聞。", "questions": ["reasonable", "context"], "news": "6060"},
+      "sun": {"relation": "原油定價的公司名", "reading": "原油定價新聞並列 Sun Co 和 Phillips Petroleum 的調價。sun 在這段原文是公司名稱。", "questions": ["context", "unexpected"], "news": "4576"},
+      "xon": {"relation": "石油公司交易代碼", "reading": "鑽探支出報導用 XON 標示 Exxon，並提到其他石油公司的投資。代碼可能因公司報導的寫法而靠近 petroleum。", "questions": ["context", "unexpected"], "news": "6656"}
+    },
+    "wheat": {
+      "rice": {"relation": "穀物補貼政策", "reading": "美國農業政策報導將小麥和稻米種植者列入同一項補貼提案。", "questions": ["reasonable", "context"], "news": "1590"}
+    },
+    "grain": {
+      "feed": {"relation": "飼料穀物搭配", "reading": "養豬產業報導用 feed grain prices 指飼料穀物價格，並說明它會影響飼養成本與利潤。", "questions": ["reasonable", "context"], "news": "2448"},
+      "meat": {"relation": "農產品期貨", "reading": "農產品期貨市場整併報導並列肉類期貨交易所和穀物及飼料貿易協會旗下的期貨組織。", "questions": ["context"], "news": "3084"}
+    },
+    "trade": {
+      "imbalance": {"relation": "貿易失衡搭配", "reading": "美日談判報導用 bilateral trade imbalance 指兩國之間的貿易失衡。", "questions": ["reasonable", "context"], "news": "342"},
+      "passed": {"relation": "貿易法案程序", "reading": "比利時貿易部長談到若美國國會通過限制紡織品進口的法案，歐洲共同體可能報復。passed 指法案獲得通過。", "questions": ["context"], "news": "1197"},
+      "yeutter": {"relation": "貿易代表人名", "reading": "植物油稅爭議報導將 Clayton Yeutter 稱為 U.S. trade representative。人名和 trade 可能因官銜及貿易政策新聞而靠近。", "questions": ["reasonable", "context"], "news": "833"}
+    }
+  }
+}

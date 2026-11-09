@@ -1,0 +1,46 @@
+{
+  "source": "Paired rewrites of the original query bank, specified before scoring the supplementary test.",
+  "original_queries_sha256": "e015279ac6d2b67545c3a511283fe12fdd180409fc31bddecbe82215ad21ccb7",
+  "variants": {
+    "Q01": {
+      "fuzzy": {"text": "How much money did businesses make?", "intent": "企業賺了多少錢"},
+      "mixed": {"text": "How much profit did businesses report?", "intent": "企業報告了多少獲利"}
+    },
+    "Q02": {
+      "fuzzy": {"text": "How much money did businesses keep after expenses over the past three months?", "intent": "企業過去三個月扣除開支後留下多少收益"},
+      "mixed": {"text": "What was the net income in the past three months?", "intent": "過去三個月的淨收益是多少"}
+    },
+    "Q03": {
+      "fuzzy": {"text": "Which businesses are joining together or being bought?", "intent": "哪些企業正在合併或被買下"},
+      "mixed": {"text": "Which businesses announced a merger or are being bought?", "intent": "哪些企業宣布合併或正在被收購"}
+    },
+    "Q04": {
+      "fuzzy": {"text": "What did a buyer offer for a controlling stake in a business?", "intent": "買方為取得企業控制權提出什麼條件"},
+      "mixed": {"text": "What did a buyer bid for a controlling stake?", "intent": "買方為取得控制權出了多少價"}
+    },
+    "Q05": {
+      "fuzzy": {"text": "How much is being pumped from underground wells?", "intent": "從地下井抽出了多少"},
+      "mixed": {"text": "How much crude is being pumped from wells?", "intent": "從井中抽出了多少原油"}
+    },
+    "Q06": {
+      "fuzzy": {"text": "What are buyers paying per barrel and how much is being pumped?", "intent": "買方每桶付多少錢，又抽出了多少"},
+      "mixed": {"text": "What are buyers paying for petroleum and how much is being pumped?", "intent": "買方為石油支付多少，又抽出了多少"}
+    },
+    "Q07": {
+      "fuzzy": {"text": "How did staple crops for flour and livestock feed fare at harvest?", "intent": "做麵粉和飼料的主糧收成如何"},
+      "mixed": {"text": "How are wheat and other staple crops doing this harvest?", "intent": "這一季小麥與其他主糧收成如何"}
+    },
+    "Q08": {
+      "fuzzy": {"text": "How much of the harvest is being shipped abroad from farms?", "intent": "農場收成有多少運往國外"},
+      "mixed": {"text": "How much wheat is being shipped abroad?", "intent": "有多少小麥運往國外"}
+    },
+    "Q09": {
+      "fuzzy": {"text": "How much more does a country buy from overseas than it sells abroad?", "intent": "一國向海外買入比賣出多了多少"},
+      "mixed": {"text": "Which countries are running a deficit from buying more abroad than they sell?", "intent": "哪些國家因海外買入超過賣出而出現逆差"}
+    },
+    "Q10": {
+      "fuzzy": {"text": "What goods are being bought and sold across borders?", "intent": "有哪些商品跨境買賣"},
+      "mixed": {"text": "What goods are countries looking to export or buy abroad?", "intent": "各國想出口或向海外購買哪些商品"}
+    }
+  }
+}

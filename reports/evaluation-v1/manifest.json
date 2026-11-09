@@ -1,0 +1,45 @@
+{
+  "status": "complete",
+  "source": "reuters_topics",
+  "k": 10,
+  "queries_sha256": "e015279ac6d2b67545c3a511283fe12fdd180409fc31bddecbe82215ad21ccb7",
+  "model_manifest_sha256": "fc7753bf476b9384afe4fe0a46fc02281faaca9830aab1b6a01b6bcbdbbb6845",
+  "created_at_utc": "2026-11-05T09:16:51.370307+00:00",
+  "test_documents": 3299,
+  "topic_counts": {
+    "earn": 1087,
+    "acq": 719,
+    "crude": 189,
+    "grain": 149,
+    "trade": 117
+  },
+  "methods": {
+    "tfidf": "TF-IDF",
+    "cbow": "TF-IDF 加權 CBOW",
+    "skipgram": "TF-IDF 加權 Skip-Gram"
+  },
+  "source_sha256": {
+    "ir_hw4/__init__.py": "357bde2bf0ee20aa6f9f471f10fff2b4f34616c924c5b73176b09fc7b656e6e5",
+    "ir_hw4/cli.py": "fd18656bd464f80d2b2621d1a2c14ffa354597bb3ed55cb8ebf6bd1b159e1a32",
+    "ir_hw4/config.py": "c59eb754f523c16c887a9a4d8db3970d0fdcb5c05efc687c5ce84e3ae27c0361",
+    "ir_hw4/dataset.py": "d59bf9f94567c598d61d0ff18f2fbf1e4198f822f1179a41ba995df36fa61e35",
+    "ir_hw4/evaluation.py": "d213ab0fce43b4497d89fe54129841f464b60932ae77b4f3ba08d1482e8bee34",
+    "ir_hw4/io.py": "8684406756918af1bd1346eb21adfd707a05f2c48f78d8395a3a98659ab2cee3",
+    "ir_hw4/retrieval.py": "de9481e225746d8dd67e6e27a24a44dfce43b5380563916a6ca2b26faaf1cbc4",
+    "ir_hw4/sentences.py": "48f18892b890020935f4921b5efd9af6dee790209b938e1c84406c68f11223e6",
+    "ir_hw4/text.py": "e3d6c15b9648ecf46eb71502db228fd8942ac42a7e915f4333ff1508fbf6c8ed",
+    "ir_hw4/training.py": "5000bbb5d414e34356976756aed1d8c3e14684db7f61cb1989b0cc47cb135cfd",
+    "ir_hw4/ui.py": "fbc24fe7fc4ff1aa20356b64c95d53b062eb928ac257bbb79aa736b6fe2a3088",
+    "ir_hw4/validation.py": "f897f673274802d2c97e71e01624a8f24b570a523bda43ff02e3dff974ce63cb"
+  },
+  "policy": "P@10 denominator is always 10; MRR uses full returned ranking; binary nDCG@10 uses log2; macro average over queries with >=1 known topic positive. OOV queries score zero, not excluded.",
+  "limitation": "Topics are dataset-provided coarse, multilabel proxies, not manual relevance judgments for the exact query; a matching topic does not guarantee the query's specific intent.",
+  "artifacts_sha256": {
+    "metrics_per_query.csv": "f1147a3fda2f7edc913e57220de10152c307c9b138244f94c293eaaebbbbf6f2",
+    "metrics_summary.csv": "9b9ecff70a925681a693bb733e0a80ffe3e07a06868c774c309e546275fc5d61",
+    "queries.json": "ac425670035e15579c825d70b18c60d8ab5c40ee87f7a263ef4c65f352f40ede",
+    "rankings.csv": "796ea150fbe7d32585bc2fc26a9528a3f42d67422e5ad3050d8acae2f34a104c",
+    "results.json": "91ad20d1f2152c2b02b1208e4ff0145efba7895ecd4c83958bdf4457ea67d7af",
+    "REPORT.md": "bf47c86d3d872db84c269137beedc456dde1ed4fb5eb182cd69d3cf960972381"
+  }
+}

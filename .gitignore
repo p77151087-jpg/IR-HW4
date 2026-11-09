@@ -1,0 +1,22 @@
+.venv/
+__pycache__/
+.pytest_cache/
+tmp/
+*.log
+*.pyc
+
+# Reuters archive and parsed corpus stay local.
+/data/
+
+# Local process state and superseded experiments.
+/reports/server.json
+/reports/training-jobs/
+/reports/archived-training-jobs/
+/artifacts/archived-experiments/
+/reports/archived-experiments/
+/artifacts/experiments/grid-d100-w2/
+/artifacts/experiments/grid-d150-w2/
+/artifacts/experiments/grid-d150-w5/
+/reports/experiments/grid-d100-w2/
+/reports/experiments/grid-d150-w2/
+/reports/experiments/grid-d150-w5/

@@ -1,0 +1,10 @@
+{
+  "model_manifest_sha256": "fc7753bf476b9384afe4fe0a46fc02281faaca9830aab1b6a01b6bcbdbbb6845",
+  "evaluation_manifest_sha256": "ed65f01de38f0d808fe75b877b735b193459cd992bac0a355fed1b3cce3945cd",
+  "queries_sha256": "e015279ac6d2b67545c3a511283fe12fdd180409fc31bddecbe82215ad21ccb7",
+  "corpus_sha256": "e086d597efcc71d9399414c7264cece1d285ebdda65619d33b882cccced3408f",
+  "source_sha256": {
+    "ir_hw4/analysis.py": "3401e500397b032e9a1aed0932f1d58f1d129d8e5eb38136beea5d9069a40329",
+    "resources/analysis_notes.json": "07bb77dbbcf6b607441ecacc14a796671ea876d1eeb3d28433eb1c6b2adf76b2"
+  }
+}

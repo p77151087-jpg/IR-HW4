@@ -1,0 +1,18 @@
+{
+  "status": "passed",
+  "created_at_utc": "2026-11-08T14:35:15.111761+00:00",
+  "corpus_sha256": "e086d597efcc71d9399414c7264cece1d285ebdda65619d33b882cccced3408f",
+  "model_manifest_sha256": "fc7753bf476b9384afe4fe0a46fc02281faaca9830aab1b6a01b6bcbdbbb6845",
+  "original_sgml_reparsed_exact": true,
+  "train_only_df_cf_and_sentence_counts_exact": true,
+  "full_models_reload_exact": true,
+  "artifacts_verified": 21,
+  "score_comparisons": 98970,
+  "tfidf_max_error": 1.1102230246251565e-16,
+  "embedding_max_error": 5.551115123125783e-16,
+  "weighted_document_vector_max_error": 1.7763568394002505e-15,
+  "metrics_max_error": 0.0,
+  "repeated_evaluation_exact": true,
+  "queries_sha256": "e015279ac6d2b67545c3a511283fe12fdd180409fc31bddecbe82215ad21ccb7",
+  "validation_source_sha256": "f897f673274802d2c97e71e01624a8f24b570a523bda43ff02e3dff974ce63cb"
+}

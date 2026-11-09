@@ -1,0 +1,220 @@
+{
+  "model_manifest_sha256": "fc7753bf476b9384afe4fe0a46fc02281faaca9830aab1b6a01b6bcbdbbb6845",
+  "evaluation_manifest_sha256": "ed65f01de38f0d808fe75b877b735b193459cd992bac0a355fed1b3cce3945cd",
+  "policy": "本次固定模型的分析推論，非逐篇人工相關性標註。數據與原文另列為可核對證據；不以文件共現直接證明詞義或訓練窗口內共現，不修改查詢、topics 或既有排名。",
+  "words": [
+    {
+      "word": "profit",
+      "reasonable": "CBOW 的 profits 是同詞的屈折形式；Skip-Gram 的 net 與淨利語境有關。loss 在兩模型都很接近，但它與 profit 的獲利方向相反，不能當作同義詞。",
+      "context": "財報常以 profit／loss、net、vs 與數字對照不同期間。這些詞處在相似表格及句式的位置，可能因此學到相近表示；下面的 profit／loss 共現新聞可支持這種情境解讀。",
+      "unexpected": "688、373.3、2.68、108.3 等數值出現在 Top-5，顯示財報模板、低頻數字與切詞方式可能影響近鄰。688 也會由 4,688,000 的逗號分割產生；不能將這些數字解讀為 profit 的語義同類。",
+      "evidence_terms": ["loss", "688"],
+      "annotations": {
+        "loss": {"relation": "反向概念", "reading": "財報用同一欄位對照本期虧損和前期獲利。兩詞能出現在同樣的句型，盈虧方向仍然相反。"},
+        "688": {"relation": "金額切詞片段", "reading": "RAYTECH 財報的淨利金額 4,688,000 被逗號切成數字片段。少數金額用例可能讓這個片段接近 profit。", "unexpected": true},
+        "373.3": {"relation": "低頻財報金額", "reading": "金礦公司財報用這個數字列稅前與淨額。兩詞在訓練集中沒有同篇紀錄，可比較各自的財務用法。", "unexpected": true},
+        "vs": {"relation": "比較標記", "reading": "季度表用 vs 對照兩期數值，獲利與虧損都能出現在比較欄。"},
+        "profits": {"relation": "同詞單複數", "reading": "COMALCO 的標題寫 profits，內文用 profit 描述同一個轉虧為盈的事件。"},
+        "net": {"relation": "財報搭配詞", "reading": "net profit 指淨利。net 也修飾 net loss，提供的是淨額概念。"},
+        "2.68": {"relation": "低頻營收數字", "reading": "有一篇財報在盈虧列後報出 2.68 billion 的營收。數字的財報位置可能解釋接近。", "unexpected": true},
+        "108.3": {"relation": "低頻獲利數字", "reading": "HUDSON'S BAY 用 108.3 mln 報前一期獲利。模型可能捕捉到數值和 profit 的報表搭配。", "unexpected": true}
+      }
+    },
+    {
+      "word": "loss",
+      "reasonable": "net、oper、vs 可與財報損益列的用法連結；profit 與 loss 有相反方向，兩者接近反映的可能是報表角色，而不是可互換的意思。",
+      "context": "同一篇財報會並列本期損失、前期獲利、每股數值及營運結果。oper／net／vs 出現在相近句式中，容易形成共享的上下文。",
+      "unexpected": "571、1.40、5.17、31.09 等數字進入近鄰，說明小型語料中的金額或每股數字也可能共享損益模板。數字接近不是有效的金融詞義解釋，也不能據此判定文件檢索改善。",
+      "evidence_terms": ["oper", "1.40"],
+      "annotations": {
+        "oper": {"relation": "營運損益欄", "reading": "財報用 Oper shr loss 和 Oper net loss 報營運損失。oper 標示營運口徑。"},
+        "vs": {"relation": "比較標記", "reading": "虧損金額後常接 vs 和另一期間的盈虧數字，形成固定比較句式。"},
+        "571": {"relation": "金額切詞片段", "reading": "BASIX 財報的 7,571,000 是比較期間停業損失金額，逗號使 571 成為獨立詞。", "unexpected": true},
+        "1.40": {"relation": "低頻每股數字", "reading": "同篇報導一處談稅務虧損，另一處談每股價值估計 1.40 美元。這是同篇的財務情境，兩處沒有緊鄰。", "unexpected": true},
+        "profit": {"relation": "反向概念", "reading": "同一條每股財報可對照一季 loss 與另一季 profit。向量靠近反映共享句型，兩詞的盈虧方向相反。"},
+        "net": {"relation": "財報搭配詞", "reading": "net loss 指淨損，net 指扣除相關項目後的淨額口徑。"},
+        "5.17": {"relation": "低頻每股損失", "reading": "BROADVIEW 報兩期每股虧損 5.67 和 5.17 美元。後一數字在整個訓練集只見於兩篇。", "unexpected": true},
+        "31.09": {"relation": "低頻每股損失", "reading": "FREEDOM SAVINGS 報每股虧損 31.09 美元。它在訓練集只出現兩次，這種近鄰依賴少量用例。", "unexpected": true}
+      }
+    },
+    {
+      "word": "earnings",
+      "reasonable": "CBOW 的 profits、income、revenues、results 都與財務表現有關，但 revenues 與 earnings 不是完全相同的財務概念，losses 也不代表正向盈餘。",
+      "context": "季度或全年財報通常一起談收入、盈餘及結果，full-year 也可能由這種報導期間語境而接近。這是財報情境上的關聯，並非所有近鄰都是同義詞。",
+      "unexpected": "Skip-Gram 的 65.0、minorco、telxon、thrid 與普通盈餘概念差異較大。thrid 在訓練新聞原文的季度敘述中出現，可能涉及原始拼寫及低頻效應；公司專名與數字也可能因少量相似句式而取得高分。下方 CF／DF 可核對低頻情形。",
+      "evidence_terms": ["income", "thrid"],
+      "annotations": {
+        "profits": {"relation": "相近財務概念", "reading": "企業盈餘展望和實際季度獲利常在一篇財報中並列，概念接近且報告口徑可能不同。"},
+        "income": {"relation": "相近財務概念", "reading": "報導用 net income 估淨收益，再用 earnings 描述公司盈餘表現，兩者在此財報語境接近。"},
+        "revenues": {"relation": "同份財報的不同欄位", "reading": "IVACO 的新聞同時談首季盈餘和去年營收。營收在扣除費用前，與盈餘指標有別。"},
+        "results": {"relation": "較廣的財務結果", "reading": "operating results 可涵蓋銷售、獲利等營運結果。公司報告用它描述整體表現。"},
+        "losses": {"relation": "損益對照", "reading": "報導可同時交代持續營運的盈餘和待處分事業的虧損，兩者處在同一報表情境。"},
+        "65.0": {"relation": "低頻財報金額", "reading": "PREUSSAG 報導用 65.0 mln marks 描述淨利。這個數值在訓練集只出現五次。", "unexpected": true},
+        "minorco": {"relation": "公司專名", "reading": "MINORCO 自身發布盈餘展望。公司名可能靠近該事件用語，近鄰涵蓋範圍仍局限於少數報導。", "unexpected": true},
+        "telxon": {"relation": "公司專名", "reading": "TELXON 報導同時預估營收和每股盈餘。公司名只見於兩篇訓練新聞。", "unexpected": true},
+        "full-year": {"relation": "財報期間", "reading": "新聞會一起談全年、第四季與重編後盈餘。full-year 表示涵蓋期間。"},
+        "thrid": {"relation": "疑似原文拼字錯誤", "reading": "原文寫 thrid quarter revenues and earnings，很可能是 third 的字母順序錯誤。詞只見於兩篇訓練新聞。", "unexpected": true}
+      }
+    },
+    {
+      "word": "acquisition",
+      "reasonable": "merger、acquisitions、transaction、purchase、buyout 都可連結企業交易或併購，兩模型的主要近鄰具有合理的事件情境關係。",
+      "context": "併購新聞常在同一事件中描述交易、購買、合併與股權變動。purchase／transaction 比 acquisition 更廣，這種上下文接近不等於每個詞都能直接替換。",
+      "unexpected": "Skip-Gram 的 sahlen 是需回到新聞閱讀的專名，而非一般併購概念。它與 acquisition 在本批訓練文件的直接共現可能為零；此時只能提出相似上下文的可能性，不能宣稱有直接共現證據。",
+      "evidence_terms": ["merger", "sahlen"],
+      "annotations": {
+        "merger": {"relation": "同一領域的交易形式", "reading": "企業報告可在同篇提及買入股權與合併事件。acquisition 偏取得控制，merger 偏合併組織。"},
+        "acquisitions": {"relation": "同詞單複數", "reading": "Dean 的報導用複數說多筆收購，並用單數介紹其中一筆具名收購。"},
+        "transaction": {"relation": "較廣的交易稱呼", "reading": "Purolator 報導將股權收購與橋接融資合稱該筆交易。transaction 可涵蓋其他交易。"},
+        "purchase": {"relation": "取得資產的用詞", "reading": "Bally 標題用 purchase，內文用 acquisition 說同一次取得飯店。purchase 在其他新聞也可指一般購買。"},
+        "buyout": {"relation": "特定收購方式", "reading": "Purolator 的 buyout 新聞談現金買股。buyout 指買下股權或控制權，是較具體的收購情境。"},
+        "sahlen": {"relation": "低頻公司專名", "reading": "SAHLEN 報導談購入保全公司。它和 acquisition 沒有同篇紀錄，兩篇各自的購買新聞提供情境線索。", "unexpected": true}
+      }
+    },
+    {
+      "word": "merger",
+      "reasonable": "CBOW 的 acquisition、transaction、buyout、reorganization 與合併或組織交易情境相關；reorganization 涵義較廣，不能一概視為 merger 的同義。",
+      "context": "合併新聞會一起出現公司名稱、交易代號、股東批准與收購條件，因此模型也可能把特定參與公司的專名和 merger 放得接近。",
+      "unexpected": "Skip-Gram 的 str、rni、vons、rainbow's，以及 CBOW 的 kistler，較像特定事件中的專名或代號。RNI 的原文合併新聞可支持這個情境，但低頻專名的高分不代表通用的語意關係，也顯示兩架構的近鄰品質不能預設高下。",
+      "evidence_terms": ["acquisition", "rni"],
+      "annotations": {
+        "acquisition": {"relation": "相鄰的併購事件", "reading": "同份公司報告能提到取得另一公司股權和兩家公司合併，兩個動作在併購新聞中常相連。"},
+        "transaction": {"relation": "較廣的交易稱呼", "reading": "Purolator 報導先交代合併對股東的安排，再用 transaction 指要完成的交易。"},
+        "buyout": {"relation": "股權買斷情境", "reading": "同篇 Purolator 報導以 buyout 作標題，內文描述交易中的合併與股東對價。"},
+        "kistler": {"relation": "合併案人物", "reading": "Kistler 是回應 Baker 合併案的 Hughes Tool 董事長。他的姓名跟隨少數事件進入近鄰。", "unexpected": true},
+        "reorganization": {"relation": "相鄰組織事件", "reading": "重組和合併都涉及公司結構。兩詞在本批訓練新聞沒有同篇紀錄，可從各自的企業調整報導理解。"},
+        "str": {"relation": "公司交易代號", "reading": "合併表決新聞用 <STR> 標記 Questar。代號靠近 merger 可由特定事件解讀。", "unexpected": true},
+        "rni": {"relation": "公司交易代號", "reading": "RANCO 標題中的 <RNI> 跟著股東通過合併的消息出現。這個代號只見於兩篇訓練新聞。", "unexpected": true},
+        "vons": {"relation": "合併案公司", "reading": "Allied 交易報導說條件取決於與 Vons 的待定合併。Vons 是事件參與者。", "unexpected": true},
+        "rainbow's": {"relation": "公司名稱的所有格", "reading": "原文用 Rainbow's planned merger 表示 Rainbow 規劃的合併。共享上下文可能來自少數具名交易。", "unexpected": true}
+      }
+    },
+    {
+      "word": "oil",
+      "reasonable": "Skip-Gram 的 crude、gas、shut-in、liquids、natural 與油氣生產情境相關；CBOW 的 petroleum 也有合理關係。gas／natural 等仍不是 oil 的完整同義詞。",
+      "context": "oil 可出現在原油、天然氣，也可出現在棕櫚油等商品新聞。kernel 的共現新聞涉及棕櫚油與棕櫚仁出口稅，提供多義及商品情境的實例。",
+      "unexpected": "CBOW 將 kernel 排第一，inter-city 也進入 Top-5。前者可能反映食用油情境與少數共現，後者是需要核對的低頻專名；這些近鄰不應直接作為原油搜尋的同義擴展。",
+      "evidence_terms": ["kernel", "inter-city"],
+      "annotations": {
+        "kernel": {"relation": "棕櫚油的商品語境", "reading": "馬來西亞出口稅報導同時提到 palm oil 和 palm kernel。oil 可指食用油，這解釋它為何可能靠近棕櫚仁。", "unexpected": true},
+        "natural": {"relation": "天然氣搭配", "reading": "阿根廷產量報導先列 crude oil，再列 natural gas。natural 的關係來自天然氣詞組。"},
+        "petroleum": {"relation": "石油語境近義", "reading": "oil 指石油時與 petroleum 意思接近。oil 還有食用油等其他用法。"},
+        "inter-city": {"relation": "油氣公司專名", "reading": "INTER-CITY GAS 財報提及油氣資產減記。inter-city 在訓練集僅出現兩次。", "unexpected": true},
+        "crude": {"relation": "原油搭配", "reading": "crude oil 指未精煉的原油。合約價格新聞以這個固定詞組報每桶價格。"},
+        "gas": {"relation": "同一產業的不同產品", "reading": "油氣設備或產量報導常寫 oil and gas。兩詞代表不同產品。"},
+        "shut-in": {"relation": "生產作業用語", "reading": "油稅新聞描述 shut-in production，也就是暫停生產。它描述油氣產量的變動方式。"},
+        "liquids": {"relation": "油氣儲量分類", "reading": "ORBIT 儲量報導並列 oil 和 natural gas liquids。liquids 在此指天然氣液體詞組的一部分。"}
+      }
+    },
+    {
+      "word": "petroleum",
+      "reasonable": "兩模型的 oil、gas，以及 CBOW 的 energy，都與能源情境相關，其中 oil 與 petroleum 較接近，但 gas／energy 涵義不同。",
+      "context": "石油新聞中也包含企業、地名、交易代號與財務事件。esso、columbia、wpla、clnp、norte 等專名或代碼，可能因特定新聞語境而靠近 petroleum，需逐案閱讀。",
+      "unexpected": "wpla 的原文涉及 WOODSIDE PETROLEUM 與 WPLA.S，能支持特定公司代號的解讀。columbia 等專名也不能直接當成 petroleum 的同義詞；稀少共現或低頻關係不足以證明穩定語義。",
+      "evidence_terms": ["wpla", "columbia"],
+      "annotations": {
+        "oil": {"relation": "石油語境近義", "reading": "石油公司報導可用 oil 指油品或油氣資產。oil 的日常用法仍比 petroleum 廣。"},
+        "energy": {"relation": "較廣的能源領域", "reading": "同一油市報導引用石油分析公司和能源政策研究者。energy 涵蓋石油以外的能源。"},
+        "esso": {"relation": "產業公司專名", "reading": "挪威勘探執照新聞並列 Esso 和多家 Petroleum 公司。這是企業與產業的關聯。"},
+        "columbia": {"relation": "低共現的公司名稱片段", "reading": "共同出現的新聞標題是 British Columbia Resources，正文提及 Westar Petroleum 投資。兩詞只在一篇訓練新聞共現。", "unexpected": true},
+        "gas": {"relation": "同一產業的不同產品", "reading": "石油公司財報可一併討論油氣資產。gas 指氣體燃料或天然氣語境。"},
+        "wpla": {"relation": "公司交易代號", "reading": "WOODSIDE PETROLEUM 標題把 <WPLA.S> 放在公司名旁。詞只有兩篇訓練用例。", "unexpected": true},
+        "clnp": {"relation": "公司交易代號", "reading": "<CLNP> 跟在 CALLON PETROLEUM 公司名後。它識別公司，語境與該公司新聞綁定。", "unexpected": true},
+        "norte": {"relation": "油田地名片段", "reading": "管線報導提及 Cravo Norte 油田。norte 的近鄰可能反映具體產區或事件。", "unexpected": true}
+      }
+    },
+    {
+      "word": "wheat",
+      "reasonable": "barley、corn、grain／grains 都與穀物相關；durum、winter、flour 可連結品種、季節或加工情境。這些是同領域或上下位／產業關係，並非全部等同小麥。",
+      "context": "穀物價格表、出口與農業新聞常同時列出小麥、大麥、玉米及其他農產品，因此不同作物可以共享上下文。DURUM 的原文表格可作具體例子。",
+      "unexpected": "這組 Top-5 未見明顯跨到無關主題的詞，但 CBOW 的 soybeans 仍不是 wheat 的同義詞，winter 也需要搭配作物情境理解。這提醒我們合理的領域近鄰仍可能讓檢索範圍變寬；未出現明顯異常不等於模型已被證明正確。",
+      "evidence_terms": ["durum", "soybeans"],
+      "annotations": {
+        "barley": {"relation": "同類作物", "reading": "農貸價格表把大麥與小麥列在同樣的價格欄位。兩者是不同穀物。"},
+        "corn": {"relation": "同類作物", "reading": "玉米與小麥在農貸、價格及產量表裡占相同欄位，形成相似的報導方式。"},
+        "soybeans": {"relation": "並列農產品", "reading": "一篇產量展望談小麥進口，再談黃豆及其他農作物產量。關聯來自農業情境，黃豆與小麥是不同作物。"},
+        "grains": {"relation": "上位類別的複數", "reading": "阿根廷出貨登記用 grains 統稱穀物，再列 bread wheat 等品種。"},
+        "grain": {"relation": "上位類別", "reading": "小麥是 grain 類別中的一種。農業制度報導也用 grain 統稱納入的品項。"},
+        "durum": {"relation": "小麥品種", "reading": "價格表將 DURUM 與其他小麥品種排在 WHEAT 欄下，支持硬粒小麥的品種關係。"},
+        "winter": {"relation": "種植與季節", "reading": "小麥新聞會談生長季與越冬。例如原文在小麥病蟲害報導提到害蟲能熬過冬天。"},
+        "flour": {"relation": "加工產品", "reading": "出口補助新聞用 wheat flour 指小麥磨成的麵粉，形成原料與產品的搭配。"}
+      }
+    },
+    {
+      "word": "grain",
+      "reasonable": "grains、wheat、corn、crop 與穀物或農作物領域相關；coarse 在 coarse grain 的搭配中有直接情境依據。",
+      "context": "穀物收成、出口及商品行情常並列多種作物，soybeans 等詞可能因農產品報導方式而接近。原文 coarse grain 的搭配支持的是用法關係，不是 coarse 單獨等於 grain。",
+      "unexpected": "CBOW 的 sugar 與穀物本身有類別差異，可能反映更廣泛的農產品／商品市場情境。Skip-Gram 的 coarse 也只是搭配詞；直接擴查可能引入不同商品，需由文件排名與 topics 評估另行檢驗。",
+      "evidence_terms": ["coarse", "sugar"],
+      "annotations": {
+        "grains": {"relation": "同詞單複數", "reading": "阿根廷登記報導以 grain 和 grains 表示穀物類別及其多種商品。"},
+        "corn": {"relation": "穀物品項", "reading": "玉米在農貸與穀物行情中作為具體品項，grain 表示較廣的類別。"},
+        "wheat": {"relation": "穀物品項", "reading": "小麥出現在穀物貸款價格表中。這是種類與類別的關係。"},
+        "soybeans": {"relation": "相鄰商品市場", "reading": "東京穀物交易所的報導談黃豆期貨保證金。相近來自交易場景，黃豆屬豆類油料作物。"},
+        "sugar": {"relation": "跨商品近鄰", "reading": "中國農業政策報導一同談糖料收購價和糧食配額。共享農業政策情境可能使不同商品靠近。", "unexpected": true},
+        "coarse": {"relation": "固定分類搭配", "reading": "暴雨報導寫 coarse grain harvesting。coarse 在詞組裡修飾穀物類別。"},
+        "crop": {"relation": "較廣的農作物用語", "reading": "出貨登記報導說 crop registrations，涵蓋穀物和油籽等作物。"}
+      }
+    },
+    {
+      "word": "trade",
+      "reasonable": "bilateral、retaliation、gatt、surplus 可與雙邊貿易、政策爭議或收支情境連結；它們描述不同面向，不能視為 trade 的同義詞。",
+      "context": "貿易新聞常討論談判、報復、警告與國際緊張。invisibles 出現在收支新聞，full-scale 的原文是貿易會議敘述，說明普通修飾詞也可能透過相似情境接近。",
+      "unexpected": "warn、full-scale、aggravation、tensions、deplore 等詞較泛用，可能反映衝突報導的語氣，而非貿易主題的專屬詞義。這種上下文接近可能把匯率或國際收支新聞排前，Q09 的文件案例正好可檢驗這個風險，但不能據此證明單一詞造成了排名變動。",
+      "evidence_terms": ["invisibles", "full-scale"],
+      "annotations": {
+        "warn": {"relation": "政策報導用語", "reading": "保護主義法案新聞用 warn 說明可能限制市場准入。這個動詞也能用在許多其他主題。", "unexpected": true},
+        "invisibles": {"relation": "相鄰的收支概念", "reading": "收支報導分開列 merchandise trade 與 invisibles 的逆差。後者是相鄰的非商品收支欄。"},
+        "bilateral": {"relation": "雙邊貿易搭配", "reading": "美日談判新聞談 bilateral trade imbalance。bilateral 表示涉及雙方。"},
+        "retaliation": {"relation": "貿易政策反應", "reading": "紡織品進口限制新聞討論貿易夥伴可能報復。retaliation 表示政策行動的後果。"},
+        "gatt": {"relation": "貿易協定名稱", "reading": "美日談判報導把 GATT 作為貿易協商框架，屬於同一制度情境。"},
+        "full-scale": {"relation": "會議規模修飾語", "reading": "原文用 full-scale 修飾 GATT conference。高分可能反映會議語境，這個形容詞可修飾許多活動。", "unexpected": true},
+        "surplus": {"relation": "貿易收支搭配", "reading": "巴西新聞用 trade surpluses 說明外貿收入。surplus 描述收支方向。"},
+        "aggravation": {"relation": "摩擦惡化的描述", "reading": "歐洲共同體聲明用 aggravation 描述貿易失衡加劇。三篇用例都與 trade 共現，證據範圍仍小。", "unexpected": true},
+        "tensions": {"relation": "貿易摩擦情境", "reading": "匯率變動報導用 trade tensions 指貿易緊張。tensions 也廣泛用於其他衝突。"},
+        "deplore": {"relation": "外交聲明用語", "reading": "歐洲共同體用 deplore 批評貿易失衡加劇。它描述聲明語氣，只有少數訓練用例。", "unexpected": true}
+      }
+    }
+  ],
+  "cases": [
+    {
+      "qid": "Q06",
+      "title": "改善案例與局部失敗：石油產出價格",
+      "kind": "改善與混合結果",
+      "document_ids": ["17046", "20031", "20008", "18523", "17441", "18280"],
+      "observations": [
+        "P@10 由 TF-IDF 的 0.40，變為加權 CBOW 的 0.70、加權 Skip-Gram 的 1.00；CBOW 的 RR 卻由 1.00 降至 0.50。改善前十名相關篇數，並不保證改善第一篇相關文件的位置。",
+        "17046 是 BRITISH PETROLEUM 的股權要約簡訊，topics 為 acq，TF-IDF 排第 3。20008 是原油增產新聞，topics 為 crude，從 TF-IDF 第 4 移到 CBOW 第 2、Skip-Gram 第 1。",
+        "CBOW 的第 1 篇 17441 是汽柴油零售價格新聞，topics 為 fuel／gas；第 3 篇 18280 是銅價新聞，topics 為 copper。這些都是可閱讀並核對的局部失敗，不是整體指標必然改善的證明。"
+      ],
+      "interpretation": "詞彙匹配可能把 petroleum 作為公司名稱的短訊排前；加權詞向量則可能讓原油生產與價格語境的新聞靠近查詢。另一方面，一般商品價格、產量與能源語境也可能讓 CBOW 偏向燃油或銅價新聞。這些是結合原文與排名的解釋推論；本案例沒有消融實驗，不能宣稱已證明單一詞或同義替換是改善原因。",
+      "limitation": "本文依目標 crude topic 計分。fuel／gas 新聞在一般語意下仍可能與石油價格有關，但不屬於本次 crude 正例集合；不把這個主題代理改稱人工語意正確率。"
+    },
+    {
+      "qid": "Q09",
+      "title": "失敗案例：前十名篇數相同但排序變差",
+      "kind": "排序退步",
+      "document_ids": ["15352", "20082", "17916", "19062"],
+      "observations": [
+        "三方法的 P@10 都是 0.80，但 TF-IDF 的 RR 為 1.00，兩種 embedding 都是 0.50；nDCG@10 也從約 0.8201 降到 CBOW 的 0.7015、Skip-Gram 的 0.6699。",
+        "15352 的內容討論預算赤字政策是否能改善貿易逆差，topics 含 trade；它由 TF-IDF 第 1 移到 CBOW 第 13、Skip-Gram 第 22。",
+        "兩種 embedding 的第 1 篇都是 20082，其標題涉及美元下跌與貿易逆差，但原始 topics 只有 money-fx。17916 談經常帳逆差、topics 為 bop，也在 Skip-Gram 第 3。"
+      ],
+      "interpretation": "trade deficit、美元匯率與國際收支共享經濟新聞上下文，加權平均可能使這些相鄰主題接近，削弱了詞彙匹配對特定用語的區分。已量到的是依 topics 規則的排序退步，並非證明 20082 在自然語意上完全不相關；它只有標題文字，不能補造不存在的正文支持判斷。",
+      "limitation": "這個案例同時暴露粗粒度、多標籤 topics 的邊界。應保留既定參考標籤及原始指標，不因看到標題合理就改寫正例；語意解讀與資料集計分分開呈現。"
+    },
+    {
+      "qid": "Q01",
+      "title": "解讀邊界：獲利查詢也會召回虧損新聞",
+      "kind": "主題標籤的限制",
+      "document_ids": ["20419", "15979", "16711"],
+      "observations": [
+        "三方法都使用 earn 作為目標 topic；此查詢的完整指標列在下表，不把任一份財報自行改成人工負例。",
+        "20419 的季度淨利報表是 TF-IDF 第 1；15979 的年度與季度財務展望，在兩種 embedding 都是第 1。",
+        "16711 談預期季度虧損及前期獲利比較，topics 為 earn，從 TF-IDF 第 333 移到 CBOW 第 2。它是主題正例，但不能僅憑 earn 標籤宣稱滿足『正向獲利』這種更細的查詢意圖。"
+      ],
+      "interpretation": "profit／loss 在相似財報句式中接近，可能使加權文件向量保留財務主題，卻不充分區分損益方向、預期或不同期間。新聞原文可支持『內容方向不同』的觀察；不能以一組詞的近鄰分數直接證明 16711 排名上升的成因。",
+      "limitation": "原查詢是 corporate profit earnings，沒有另外定義『只找正向獲利』的人工作業標準。本案例用來展示主題與細節意圖的差別，不變更查詢、topics 或既有評分。"
+    }
+  ]
+}

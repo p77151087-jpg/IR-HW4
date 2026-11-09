@@ -1,0 +1,50 @@
+{
+  "status": "complete",
+  "source": "reuters_topics",
+  "k": 10,
+  "queries_sha256": "e015279ac6d2b67545c3a511283fe12fdd180409fc31bddecbe82215ad21ccb7",
+  "model_manifest_sha256": "50eacf14caedb3155fb073c3726c800f8528f71807eac2ea6616e3bbdea3ac66",
+  "created_at_utc": "2026-11-07T07:56:57.637781+00:00",
+  "test_documents": 3299,
+  "topic_counts": {
+    "earn": 1087,
+    "acq": 719,
+    "crude": 189,
+    "grain": 149,
+    "trade": 117
+  },
+  "methods": {
+    "tfidf": "TF-IDF",
+    "cbow": "TF-IDF 加權 CBOW",
+    "skipgram": "TF-IDF 加權 Skip-Gram"
+  },
+  "source_sha256": {
+    "ir_hw4/__init__.py": "357bde2bf0ee20aa6f9f471f10fff2b4f34616c924c5b73176b09fc7b656e6e5",
+    "ir_hw4/analysis.py": "ff9b7dc36896e05a365eabec249b630de670320ff3758711c022fdf4e6bd56cf",
+    "ir_hw4/cli.py": "fd18656bd464f80d2b2621d1a2c14ffa354597bb3ed55cb8ebf6bd1b159e1a32",
+    "ir_hw4/config.py": "c59eb754f523c16c887a9a4d8db3970d0fdcb5c05efc687c5ce84e3ae27c0361",
+    "ir_hw4/dataset.py": "d59bf9f94567c598d61d0ff18f2fbf1e4198f822f1179a41ba995df36fa61e35",
+    "ir_hw4/evaluation.py": "d213ab0fce43b4497d89fe54129841f464b60932ae77b4f3ba08d1482e8bee34",
+    "ir_hw4/experiment_ui.py": "0aae8cbf3d94812b164007a43ad34200a9569e9a2958ca57b9a34ba3d8893d47",
+    "ir_hw4/experiments.py": "ff7efc6ce16da81787f28da3065b85e298fce2a8c00ef3cb88f6cd9513bb2bb0",
+    "ir_hw4/io.py": "8684406756918af1bd1346eb21adfd707a05f2c48f78d8395a3a98659ab2cee3",
+    "ir_hw4/parameter_training.py": "bde21843d6c0bd2adce33e398db97181a062bdb5afdee55d005265256ddf0174",
+    "ir_hw4/retrieval.py": "de9481e225746d8dd67e6e27a24a44dfce43b5380563916a6ca2b26faaf1cbc4",
+    "ir_hw4/sentences.py": "48f18892b890020935f4921b5efd9af6dee790209b938e1c84406c68f11223e6",
+    "ir_hw4/text.py": "e3d6c15b9648ecf46eb71502db228fd8942ac42a7e915f4333ff1508fbf6c8ed",
+    "ir_hw4/training.py": "5000bbb5d414e34356976756aed1d8c3e14684db7f61cb1989b0cc47cb135cfd",
+    "ir_hw4/training_jobs.py": "5c80f0fea62f7ded250146444a1b68856e69abc46d45cdc8f36c3b823c819ed6",
+    "ir_hw4/ui.py": "1cdc6b5fc4260ec139d1d249ffdc192637fe845e58084e6e9c1a549c8d046026",
+    "ir_hw4/validation.py": "f897f673274802d2c97e71e01624a8f24b570a523bda43ff02e3dff974ce63cb"
+  },
+  "policy": "P@10 denominator is always 10; MRR uses full returned ranking; binary nDCG@10 uses log2; macro average over queries with >=1 known topic positive. OOV queries score zero, not excluded.",
+  "limitation": "Topics are dataset-provided coarse, multilabel proxies, not manual relevance judgments for the exact query; a matching topic does not guarantee the query's specific intent.",
+  "artifacts_sha256": {
+    "metrics_per_query.csv": "bcdbb13790ec29c2ac80ec54d8928482f9f4d4f90bbb324c88a6fb55c519f249",
+    "metrics_summary.csv": "690392dee06f2d4c3264179dbbf5c73d837403088c236405fd0b9226a4560089",
+    "queries.json": "ac425670035e15579c825d70b18c60d8ab5c40ee87f7a263ef4c65f352f40ede",
+    "rankings.csv": "f45032d31ac2b84d3d9e40cdb1ea7252003c1d3f05f477c0bf7d87b299973904",
+    "results.json": "0a4f08827dce0bcf2d50100ef17024b26a72b0872e309ff2bd5cce8237239574",
+    "REPORT.md": "21818c1b5899db13837865d3415709026f6925f787bafc22fcd9c21e76f47f71"
+  }
+}

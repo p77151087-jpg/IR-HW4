@@ -1,0 +1,60 @@
+{
+  "status": "complete",
+  "completed_at_utc": "2026-11-05T10:30:56.132519+00:00",
+  "four_pages_preserved": true,
+  "words_explained": 10,
+  "case_qids": [
+    "Q06",
+    "Q09",
+    "Q01"
+  ],
+  "report": "C:\\成大專案\\IR-HW4\\reports\\analysis\\runs\\20261105T102604Z-7b07bd\\HW4_REPORT.md",
+  "bundle": "C:\\成大專案\\IR-HW4\\reports\\analysis\\runs\\20261105T102604Z-7b07bd\\HW4_REPORT.zip",
+  "report_sha256": "644eccd40d560360ecbbe745d68f6de853a571bf19d6241d9149eaebfcd63416",
+  "tests_passed": 31,
+  "protected_hw4_files": 41,
+  "protected_hw4_changed": [],
+  "hw3_protection": {
+    "status": "unchanged",
+    "protected_files": 1469,
+    "changed": [],
+    "excluded": [
+      ".git",
+      ".venv",
+      ".pytest_cache",
+      "__pycache__",
+      "tmp",
+      "*.log"
+    ],
+    "checked_at_utc": "2026-11-05T10:30:56.132519+00:00"
+  },
+  "analysis_verification": {
+    "status": "passed",
+    "report": "reports/analysis/runs/20261105T102604Z-7b07bd",
+    "words_explained": 10,
+    "neighbor_rows": 100,
+    "word_pairs_verified": 20,
+    "source_excerpts_verified": 26,
+    "case_count": 3,
+    "case_scores_verified": 39,
+    "zip_matches_report_and_data": true,
+    "report_sha256": "644eccd40d560360ecbbe745d68f6de853a571bf19d6241d9149eaebfcd63416"
+  },
+  "source_sha256": {
+    "ir_hw4/analysis.py": "3401e500397b032e9a1aed0932f1d58f1d129d8e5eb38136beea5d9069a40329",
+    "ir_hw4/ui.py": "b1febfe2f18ac007c6226ed06b6c658f86597e90c158a5a1c83c25ae1d7f8cb7",
+    "resources/analysis_notes.json": "07bb77dbbcf6b607441ecacc14a796671ea876d1eeb3d28433eb1c6b2adf76b2",
+    "scripts/build_report.py": "7a6a58804cfa0c87a1560d50ddfc72640a15a540cc6b13d023efcdb18c96fd97",
+    "scripts/verify_analysis.py": "9a4c988ddf46bf9828a2ccf69a124eaf9e4e6cbd4f3f69e0a84089f23c21e442",
+    "scripts/test_hw4.ps1": "e80b38cdb7cc5b93eb4ea41efb27d27ce1582155ac2f9e5da55ee56b3d450121",
+    "tests/test_analysis.py": "9f4ab158596158840cf3464ab3a85c879f090ae6da9673f3c96658e8b09e644f",
+    "README.md": "4e3528fad9a267bdb2e1cbbbaf81ee518690701b588e50791dcfe8e1bae5ac5c"
+  },
+  "browser_checks": [
+    "Updated four-page navigation and integrated report entry visible",
+    "Oil word interpretation rendered with all three explanation categories",
+    "Q09 failure analysis and topic limitations visibly confirmed",
+    "Report evidence ZIP downloaded through the website and SHA256 exactly matches the saved ZIP"
+  ],
+  "download_sha256": "77ddc608dcb1d5693c98fa002dfa0254da243c5144a82563c1fe7ce5f4970ae8"
+}

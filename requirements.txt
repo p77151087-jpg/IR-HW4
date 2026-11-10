@@ -7,3 +7,4 @@ scipy==1.18.1
 pandas==3.0.6
 scikit-learn==1.9.1
 pytest==9.1.1
+./deployment/reuters_corpus

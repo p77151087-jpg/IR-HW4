@@ -7,8 +7,6 @@ textColor = "#173042"
 font = "sans serif"
 
 [server]
-address = "127.0.0.1"
-port = 8504
 headless = true
 fileWatcherType = "none"
 

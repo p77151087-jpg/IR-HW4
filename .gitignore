@@ -20,3 +20,6 @@ tmp/
 /reports/experiments/grid-d100-w2/
 /reports/experiments/grid-d150-w2/
 /reports/experiments/grid-d150-w5/
+
+/deployment/reuters_corpus/build/
+/deployment/reuters_corpus/*.egg-info/

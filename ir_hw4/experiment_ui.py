@@ -5,6 +5,7 @@ from io import BytesIO
 from itertools import product
 import json
 from math import isfinite
+import os
 
 import altair as alt
 import pandas as pd
@@ -423,7 +424,12 @@ def loss_panel():
 
 
 def experiment_panel(signature):
-    view = st.radio("參數實驗內容", ("比較結果", "訓練 Loss 曲線", "自行訓練"), horizontal=True, key="parameter_experiment_view")
+    views = ("比較結果", "訓練 Loss 曲線")
+    if os.environ.get("IR_HW4_CLOUD_READ_ONLY") == "1":
+        st.caption("雲端版可查看已完成的實驗。自行訓練請使用本機版。")
+    else:
+        views += ("自行訓練",)
+    view = st.radio("參數實驗內容", views, horizontal=True, key="parameter_experiment_view")
     if view == "自行訓練":
         training_controls()
     elif view == "訓練 Loss 曲線":

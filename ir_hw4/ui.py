@@ -727,13 +727,23 @@ def tsne_topic_layers(regions, frame, extent, x, y, tooltips):
 
 def word_space_chart(words, xy, cosine, extent, color, method, insights, *, pan_zoom=False, topic_regions=()):
     side = 304
-    frame = pd.DataFrame([
-        {"word": term, "x": xy[i, 0], "y": xy[i, 1], "cosine": cosine[i],
-         "rank": i, "label": f"{i} · {term}" if i else term,
-         "kind": "近鄰" if i else "中心詞",
-         **(neighbor_context(term, insights) if i <= 5 else {})}
-        for i, term in enumerate(words)
-    ])
+    dense = pan_zoom and len(words) > 6
+    if dense:
+        ranks = np.arange(len(words), dtype=np.int32)
+        frame = pd.DataFrame({"word": words, "x": xy[:, 0], "y": xy[:, 1], "cosine": cosine,
+                              "rank": ranks})
+        labeled = frame.iloc[:6].assign(
+            kind=["中心詞", *["近鄰"] * 5],
+            label=[words[0], *(f"{rank} · {term}" for rank, term in enumerate(words[1:6], 1))],
+        )
+    else:
+        frame = pd.DataFrame([
+            {"word": term, "x": xy[i, 0], "y": xy[i, 1], "cosine": cosine[i],
+             "rank": i, "label": f"{i} · {term}" if i else term, "kind": "近鄰" if i else "中心詞",
+             **(neighbor_context(term, insights) if i <= 5 else {})}
+            for i, term in enumerate(words)
+        ])
+        labeled = frame.iloc[:6]
     pca = method == "PCA"
     x_title, y_title = ("X（PC1）", "Y（PC2）") if pca else ("X（t-SNE 1）", "Y（t-SNE 2）")
     scale = alt.Scale(domain=[-extent, extent], nice=False, zero=False)
@@ -743,7 +753,7 @@ def word_space_chart(words, xy, cosine, extent, color, method, insights, *, pan_
     y_axis = alt.Axis(title=y_title, **axis_style)
     x = alt.X("x:Q", scale=scale, axis=x_axis)
     y = alt.Y("y:Q", scale=scale, axis=y_axis)
-    base = alt.Chart(frame).encode(x=x, y=y)
+    base = alt.Chart(labeled if dense else frame).encode(x=x, y=y)
     tooltips = [alt.Tooltip("label:N", title="詞與名次"), alt.Tooltip("kind:N", title="圖例"),
                 alt.Tooltip("cosine:Q", title="與中心詞的原始 cosine", format=".6f")]
     if pca:
@@ -758,17 +768,24 @@ def word_space_chart(words, xy, cosine, extent, color, method, insights, *, pan_
         order=alt.Order("rank:Q", sort="descending"),
         tooltip=tooltips,
     )
-    if pan_zoom:
-        symbols = symbols.interactive(name="projection_view")
-    labels = alt.Chart(projection_labels(frame.iloc[:6], extent, side))
+    if dense:
+        tooltips = [alt.Tooltip("word:N", title="詞"), alt.Tooltip("rank:Q", title="名次"), *tooltips[2:]]
+        # A constant-style layer avoids computing a description and highlight style for every point.
+        cloud = alt.Chart(frame).transform_filter(alt.datum.rank > 5).mark_point(
+            filled=True, shape="circle", color=color, size=8, opacity=.22, clip=True, aria=False,
+        ).encode(x=x, y=y, tooltip=tooltips).interactive(name="projection_view")
+        points = [cloud, symbols]
+    else:
+        points = [symbols.interactive(name="projection_view") if pan_zoom else symbols]
+    labels = alt.Chart(projection_labels(labeled, extent, side))
     leaders = labels.mark_rule(color="#839194", opacity=.6, clip=pan_zoom).encode(
         x=x, y=y, x2="end_x:Q", y2="end_y:Q")
     text = labels.mark_text(align="left", fontSize=12, limit=123, clip=pan_zoom).encode(
         x=alt.X("label_x:Q", scale=scale, axis=x_axis), y=alt.Y("label_y:Q", scale=scale, axis=y_axis), text="label:N")
-    layers = [leaders, symbols, text]
+    layers = [leaders, *points, text]
     if topic_regions:
         outline, example_points, halo, group_labels = tsne_topic_layers(topic_regions, frame, extent, x, y, tooltips)
-        layers = [leaders, symbols, outline, example_points, text, halo, group_labels]
+        layers = [leaders, *points, outline, example_points, text, halo, group_labels]
     chart = alt.layer(*layers).properties(
         width=side, height=side, autosize=alt.AutoSizeParams(type="pad", contains="content"),
     ).configure_view(strokeOpacity=0)
@@ -783,7 +800,6 @@ def word_projection_panel(model, word, points, method, color, insights, widget_s
     positions = {term: index for index, term in enumerate(vocabulary)}
     indices = [positions[term] for term in words]
     projection = full_projection or cached_neighbor_projection(vectors[indices], method)
-    dimensions = vectors.shape[1]
     xy = projection["xy"]
     if full_projection is not None and xy is not None:
         xy = xy[indices]
@@ -809,23 +825,36 @@ def word_projection_panel(model, word, points, method, color, insights, widget_s
                 for region in topic_regions:
                     examples = "、".join(f"`{term}`" for term in region["terms"])
                     st.markdown(f"**{region['topic']}**　{examples}")
-    with st.expander("比較這張圖中的兩個詞"):
+    projection_pair_panel(words, positions, vectors, xy, pca, widget_suffix, lazy=full_projection is not None)
+
+
+@st.fragment
+def projection_pair_panel(words, positions, vectors, xy, pca, widget_suffix, *, lazy):
+    first_key = f"pca_first_{widget_suffix}"
+    second_key = f"pca_second_{widget_suffix}"
+    expander = st.expander("比較這張圖中的兩個詞", key=f"projection_pair_{widget_suffix}" if lazy else None,
+                           on_change="rerun" if lazy else "ignore")
+    if lazy and not expander.open:
+        # Keep an earlier choice when the large dropdowns are hidden.
+        for key in (first_key, second_key):
+            if key in st.session_state:
+                st.session_state[key] = st.session_state[key]
+        return
+    with expander:
         a, b = st.columns(2)
-        first_key = f"pca_first_{widget_suffix}"
         if first_key in st.session_state and st.session_state[first_key] not in words:
-            st.session_state[first_key] = word
+            st.session_state[first_key] = words[0]
         first = a.selectbox("詞 A", words, key=first_key)
         alternatives = [term for term in words if term != first]
-        preferred = {"profit": "loss", "loss": "profit"}.get(word)
+        preferred = {"profit": "loss", "loss": "profit"}.get(words[0])
         default = preferred if preferred in alternatives else alternatives[0]
-        second_key = f"pca_second_{widget_suffix}"
         if second_key in st.session_state and st.session_state[second_key] not in alternatives:
             st.session_state[second_key] = default
         second = b.selectbox("詞 B", alternatives, index=alternatives.index(default), key=second_key)
         left, right = unit_rows(vectors[[positions[first], positions[second]]].astype(np.float64))
         similarity = float(np.clip(left @ right, -1., 1.))
         full_distance = np.sqrt(max(0., 2 - 2 * similarity))
-        distance_line = f"原始 cosine **{similarity:.4f}**　·　{dimensions} 維距離 **{full_distance:.4f}**"
+        distance_line = f"原始 cosine **{similarity:.4f}**　·　{vectors.shape[1]} 維距離 **{full_distance:.4f}**"
         if pca:
             i, j = words.index(first), words.index(second)
             distance_line += f"　·　2 維距離 **{np.linalg.norm(xy[i] - xy[j]):.4f}**"
@@ -835,7 +864,8 @@ def word_projection_panel(model, word, points, method, color, insights, widget_s
 
 @st.cache_data(show_spinner=False, max_entries=256)
 def neighbor_points(word, method, model_signature, _model):
-    return [{"rank": rank, **row} for rank, row in enumerate(neighbors(*_model, word), 1)]
+    ranked = vocabulary_neighbors(word, method, model_signature, _model)
+    return [{"rank": rank, **row} for rank, row in enumerate(ranked[:5], 1)]
 
 
 @st.cache_data(show_spinner=False, max_entries=12)
@@ -851,6 +881,90 @@ def read_weighting_reference():
     except (ValueError, OSError, KeyError, TypeError):
         return None, {}
     return report, reference_scores
+
+
+@st.fragment
+def word_map_panel(word, models, model_signatures, points_by_model, insights, configs, selected_runs, tables):
+    view = None
+    all_words = False
+    if any(points_by_model.values()):
+        st.subheader(f"{word} 的 Top-5 近鄰")
+        st.caption("原始 cosine 決定各模型的近鄰名次。排名表與下方「逐詞解讀」聚焦前 5 名。"
+                   "共現篇數計算有提到兩個詞的訓練新聞。")
+        view = st.radio("圖表", ("Top-5 相似度", "PCA 空間", "t-SNE 空間"), horizontal=True, key="word_map_view")
+        if view == "Top-5 相似度":
+            st.caption("各圖只顯示本模型的 Top-5，與各自的排名表對應。"
+                       "長條從 0 起算。向右代表正分，向左代表負分。兩張圖使用相同的 cosine 尺度。")
+        else:
+            scope = st.radio("投影範圍", ("前 5 詞", "全部詞"), horizontal=True, key="word_projection_limit")
+            all_words = scope == "全部詞"
+            st.caption("方塊是中心詞，前 5 名用較大的圓點標示。將游標停在點上可查看詞、名次和原始 cosine。"
+                       "兩張圖各自投影到二維，跨模型比較請讀原始 cosine 與名次。")
+            if all_words:
+                st.caption("全部詞使用各模型詞彙表中有可用向量的詞。已準備的投影可直接載入，換中心詞也會沿用座標。")
+                if view == "t-SNE 空間":
+                    st.caption("紫色虛線依同主題代表詞的位置畫圈，每張圖最多三圈。圈內也可能有其他詞，"
+                               "可在圖下展開清單核對用來畫圈的代表詞。")
+                st.caption("在圖內滾動滑鼠滾輪可縮放，按住左鍵拖曳可平移，雙擊可回到全圖。")
+            if view == "PCA 空間":
+                with st.expander("PCA 圖怎麼讀？"):
+                    st.markdown(
+                        "**X（PC1）與 Y（PC2）**　PCA 用詞向量的原有維度組合出兩個新方向。"
+                        "PC1 是詞向量分布最散的方向，PC2 是與 PC1 垂直的方向中變異最大的一個。\n\n"
+                        "**變異比例**　圖上方的百分比表示各軸保留了這批詞向量的多少變異。"
+                        "例如合計 33.4% 表示兩軸保留約三分之一的變異，問號可查看各軸的變異量原值。"
+                        "切換「前 5 詞」與「全部詞」時，參與投影的詞不同，方向和比例都可能改變。\n\n"
+                        "**圖上的距離**　兩詞在圖上靠近，表示它們沿這兩個方向的位置接近。"
+                        "其他維度的差異可能被省略，因此詞群也可能看起來混在一起。"
+                        "在圖下展開「比較這張圖中的兩個詞」，可對照 2 維距離與原始 cosine。"
+                    )
+            else:
+                st.markdown(
+                    "**為什麼詞群看起來連在一起？**\n\n"
+                    "穀物和航運會共用 `cargo`（貨物）這類詞。Word2Vec 依周邊用詞學習，"
+                    "所以 `grain`（穀物）和 `vessels`（船隻）都可以和 `cargo` 相近，兩群的近鄰就有了交集。"
+                    "t-SNE 儘量保留這些局部關係，所以兩群即使各有一塊密集區，中間仍可能有其他詞的點接起來。"
+                )
+                with st.expander("看 Reuters 原文與原始 cosine"):
+                    st.markdown(
+                        "**同一個詞怎麼用在兩個主題**　訓練新聞 #4203 寫到 `cargo of wheat`（裝載的小麥）。"
+                        "訓練新聞 #11271 則同時提到靠港船隻 `vessels` 和 `cargo handling equipment`（貨物裝卸設備）。"
+                        "預設 CBOW 的原始向量中，`cargo` 與 `grain` 的 cosine 是 **0.8140**，"
+                        "與 `vessels` 是 **0.8875**。\n\n"
+                        "**全圖怎麼看**　兩個預設模型各有 23,172 個詞，縮到全圖時點也會重疊。"
+                        "在「全部詞」可放大紫色圈附近，再用原始 cosine 和近鄰名次核對。\n\n"
+                        "**以 `wheat` 為例**　在預設 CBOW（300 維、窗口 15、5 輪）裡，"
+                        "原始 cosine 排名第一的是 `corn`（**0.9493**）。在預設 Skip-Gram"
+                        "（150 維、窗口 15、15 輪）裡，第一名是 `barley`（**0.7390**）。"
+                        "兩者都是預設模型穀物圈的代表詞。\n\n"
+                        "[t-SNE 圖的判讀示例](https://distill.pub/2016/misread-tsne/)"
+                    )
+    for col, (name, label), color in zip(st.columns(2, gap="large"), WORD_MODELS.items(), COLORS):
+        with col:
+            st.markdown("#### " + label)
+            points = points_by_model[name]
+            if not points:
+                st.info(f"這個詞沒有可用詞向量，可能未出現在訓練集或未達 min_count={configs[name]['min_count']}。")
+                continue
+            if view == "Top-5 相似度":
+                st.altair_chart(neighbor_similarity_chart(word, points, color, insights), width="stretch")
+            else:
+                method = "PCA" if view == "PCA 空間" else "t-SNE"
+                full_projection, plotted_points = None, points
+                if all_words:
+                    full_projection = project_vocabulary(model_signatures[name], name, method, models[name][1])
+                    plotted_points = vocabulary_neighbors(word, name, model_signatures[name], models[name])
+                word_projection_panel(models[name], word, plotted_points, method, color, insights,
+                                      f"{name}_{word}_{selected_runs[name]}", full_projection=full_projection)
+            st.dataframe(tables[name], hide_index=True, width="stretch", column_config={
+                "名次": st.column_config.NumberColumn(width=44),
+                "鄰近詞": st.column_config.TextColumn(width=74),
+                "cosine": st.column_config.NumberColumn(format="%.4f", width=56),
+                "語境判讀": st.column_config.TextColumn(
+                    "語境關係", width=121, help="顯示詞義、用法或共有的周邊詞。選取下方的近鄰可核對原文。"),
+                "同篇共現（篇）": st.column_config.NumberColumn(
+                    "共現篇數", width=70, help="一篇訓練新聞只要含有這兩個詞就計為 1 篇。兩詞可以出現在不同句子。"),
+            })
 
 
 def word_analysis(signature):
@@ -928,101 +1042,23 @@ def word_analysis(signature):
                        for name, model in models.items()}
     insights = neighbor_insights(word, entry, points_by_model, signature)
     widget_suffix = f"{word}_{':'.join(dict.fromkeys(selected_runs.values()))}"
-    view = None
-    all_words = False
-    if any(points_by_model.values()):
-        st.subheader(f"{word} 的 Top-5 近鄰")
-        st.caption("原始 cosine 決定各模型的近鄰名次。排名表與下方「逐詞解讀」聚焦前 5 名。"
-                   "共現篇數計算有提到兩個詞的訓練新聞。")
-        view = st.radio("圖表", ("Top-5 相似度", "PCA 空間", "t-SNE 空間"), horizontal=True, key="word_map_view")
-        if view == "Top-5 相似度":
-            st.caption("各圖只顯示本模型的 Top-5，與各自的排名表對應。"
-                       "長條從 0 起算。向右代表正分，向左代表負分。兩張圖使用相同的 cosine 尺度。")
-        else:
-            scope = st.radio("投影範圍", ("前 5 詞", "全部詞"), horizontal=True, key="word_projection_limit")
-            all_words = scope == "全部詞"
-            st.caption("方塊是中心詞，前 5 名用較大的圓點標示。將游標停在點上可查看詞、名次和原始 cosine。"
-                       "兩張圖各自投影到二維，跨模型比較請讀原始 cosine 與名次。")
-            if all_words:
-                st.caption("全部詞使用各模型詞彙表中有可用向量的詞。已準備的投影可直接載入，換中心詞也會沿用座標。")
-                if view == "t-SNE 空間":
-                    st.caption("紫色虛線依同主題代表詞的位置畫圈，每張圖最多三圈。圈內也可能有其他詞，"
-                               "可在圖下展開清單核對用來畫圈的代表詞。")
-                st.caption("在圖內滾動滑鼠滾輪可縮放，按住左鍵拖曳可平移，雙擊可回到全圖。")
-            if view == "PCA 空間":
-                with st.expander("PCA 圖怎麼讀？"):
-                    st.markdown(
-                        "**X（PC1）與 Y（PC2）**　PCA 用詞向量的原有維度組合出兩個新方向。"
-                        "PC1 是詞向量分布最散的方向，PC2 是與 PC1 垂直的方向中變異最大的一個。\n\n"
-                        "**變異比例**　圖上方的百分比表示各軸保留了這批詞向量的多少變異。"
-                        "例如合計 33.4% 表示兩軸保留約三分之一的變異，問號可查看各軸的變異量原值。"
-                        "切換「前 5 詞」與「全部詞」時，參與投影的詞不同，方向和比例都可能改變。\n\n"
-                        "**圖上的距離**　兩詞在圖上靠近，表示它們沿這兩個方向的位置接近。"
-                        "其他維度的差異可能被省略，因此詞群也可能看起來混在一起。"
-                        "在圖下展開「比較這張圖中的兩個詞」，可對照 2 維距離與原始 cosine。"
-                    )
-            else:
-                st.markdown(
-                    "**為什麼詞群看起來連在一起？**\n\n"
-                    "穀物和航運會共用 `cargo`（貨物）這類詞。Word2Vec 依周邊用詞學習，"
-                    "所以 `grain`（穀物）和 `vessels`（船隻）都可以和 `cargo` 相近，兩群的近鄰就有了交集。"
-                    "t-SNE 儘量保留這些局部關係，所以兩群即使各有一塊密集區，中間仍可能有其他詞的點接起來。"
-                )
-                with st.expander("看 Reuters 原文與原始 cosine"):
-                    st.markdown(
-                        "**同一個詞怎麼用在兩個主題**　訓練新聞 #4203 寫到 `cargo of wheat`（裝載的小麥）。"
-                        "訓練新聞 #11271 則同時提到靠港船隻 `vessels` 和 `cargo handling equipment`（貨物裝卸設備）。"
-                        "預設 CBOW 的原始向量中，`cargo` 與 `grain` 的 cosine 是 **0.8140**，"
-                        "與 `vessels` 是 **0.8875**。\n\n"
-                        "**全圖怎麼看**　兩個預設模型各有 23,172 個詞，縮到全圖時點也會重疊。"
-                        "在「全部詞」可放大紫色圈附近，再用原始 cosine 和近鄰名次核對。\n\n"
-                        "**以 `wheat` 為例**　在預設 CBOW（300 維、窗口 15、5 輪）裡，"
-                        "原始 cosine 排名第一的是 `corn`（**0.9493**）。在預設 Skip-Gram"
-                        "（150 維、窗口 15、15 輪）裡，第一名是 `barley`（**0.7390**）。"
-                        "兩者都是預設模型穀物圈的代表詞。\n\n"
-                        "[t-SNE 圖的判讀示例](https://distill.pub/2016/misread-tsne/)"
-                    )
-    all_rows = []
-    for col, (name, label), color in zip(st.columns(2, gap="large"), WORD_MODELS.items(), COLORS):
-        with col:
-            st.markdown("#### " + label)
-            points = points_by_model[name]
-            if not points:
-                st.info(f"這個詞沒有可用詞向量，可能未出現在訓練集或未達 min_count={configs[name]['min_count']}。")
-                continue
-            if view == "Top-5 相似度":
-                st.altair_chart(neighbor_similarity_chart(word, points, color, insights), width="stretch")
-            else:
-                method = "PCA" if view == "PCA 空間" else "t-SNE"
-                full_projection, plotted_points = None, points
-                if all_words:
-                    full_projection = project_vocabulary(model_signatures[name], name, method, models[name][1])
-                    plotted_points = vocabulary_neighbors(word, name, model_signatures[name], models[name])
-                word_projection_panel(models[name], word, plotted_points, method, color, insights,
-                                      f"{name}_{word}_{selected_runs[name]}", full_projection=full_projection)
-            rows = []
-            for point in points:
-                term = point["word"]
-                insight = insights[term]
-                evidence = insight["evidence"]
-                cooccurrence = evidence["cooccurrence_documents"]
-                rows.append({"名次": point["rank"], "鄰近詞": term, "cosine": point["cosine"],
-                             "語境判讀": insight["relation"], "同篇共現（篇）": cooccurrence})
-                witness_ids = dict.fromkeys(witness["id"] for witness in evidence["witnesses"])
-                all_rows.append({"分析詞": word, "模型": name, "run": selected_runs[name], "名次": point["rank"], "word": term,
-                                 "cosine": point["cosine"], "relation": insight["relation"], "reading": insight["reading"],
-                                 "source": insight["source"], "cooccurrence_documents": cooccurrence,
-                                 "training_news_ids": "|".join(witness_ids), "unexpected": insight.get("unexpected")})
-            frame = pd.DataFrame(rows)
-            st.dataframe(frame, hide_index=True, width="stretch", column_config={
-                "名次": st.column_config.NumberColumn(width=44),
-                "鄰近詞": st.column_config.TextColumn(width=74),
-                "cosine": st.column_config.NumberColumn(format="%.4f", width=56),
-                "語境判讀": st.column_config.TextColumn(
-                    "語境關係", width=121, help="顯示詞義、用法或共有的周邊詞。選取下方的近鄰可核對原文。"),
-                "同篇共現（篇）": st.column_config.NumberColumn(
-                    "共現篇數", width=70, help="一篇訓練新聞只要含有這兩個詞就計為 1 篇。兩詞可以出現在不同句子。"),
-            })
+    tables, all_rows = {}, []
+    for name, points in points_by_model.items():
+        rows = []
+        for point in points:
+            term = point["word"]
+            insight = insights[term]
+            evidence = insight["evidence"]
+            cooccurrence = evidence["cooccurrence_documents"]
+            rows.append({"名次": point["rank"], "鄰近詞": term, "cosine": point["cosine"],
+                         "語境判讀": insight["relation"], "同篇共現（篇）": cooccurrence})
+            witness_ids = dict.fromkeys(witness["id"] for witness in evidence["witnesses"])
+            all_rows.append({"分析詞": word, "模型": name, "run": selected_runs[name], "名次": point["rank"], "word": term,
+                             "cosine": point["cosine"], "relation": insight["relation"], "reading": insight["reading"],
+                             "source": insight["source"], "cooccurrence_documents": cooccurrence,
+                             "training_news_ids": "|".join(witness_ids), "unexpected": insight.get("unexpected")})
+        tables[name] = pd.DataFrame(rows)
+    word_map_panel(word, models, model_signatures, points_by_model, insights, configs, selected_runs, tables)
     st.info("向量相近可能反映共同詞形、相似新聞句式，甚至同一報表裡的反義詞。詞義要回到原文判讀，檢索效果另用測試新聞驗證。")
     if all_rows:
         st.download_button("下載這個詞的近鄰", csv_bytes(pd.DataFrame(all_rows)), f"neighbors-{word}.csv", "text/csv")

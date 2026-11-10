@@ -1,0 +1,63 @@
+{
+  "comparison_manifest_sha256": "d352b8d6330d7a996e0fde8c1628b146e1bf84699f27780eff86de92415e81c1",
+  "runs": {
+    "cbow": "grid-d300-w15-e5",
+    "skipgram": "grid-d150-w15-e15"
+  },
+  "groups": {
+    "keyword": {
+      "cases": [
+        {
+          "qid": "Q06",
+          "articles": [
+            {"id": "20008", "title": "馬來西亞建議提高原油產量", "topics": ["crude"], "ranks": {"tfidf": 4, "cbow": 9, "skipgram": 1}},
+            {"id": "17046", "title": "英國石油股票收購要約展期", "topics": ["acq"], "ranks": {"tfidf": 3, "cbow": 733, "skipgram": 114}},
+            {"id": "20031", "title": "孟加拉招標採購煤油與柴油", "topics": ["jet"], "ranks": {"tfidf": 2, "cbow": 88, "skipgram": 24}}
+          ],
+          "reading": "純 TF-IDF 靠 `petroleum` 的字面重疊，把燃料採購和公司名 **British Petroleum** 的收購新聞排在原油產量報導前。拆開兩種加權模型的分數，`petroleum` 單項仍偏向收購新聞，但 `output` 和 `prices` 合計更有利於寫了 `crude oil` 的原油產量新聞。兩種加權都讓這兩篇其他主題的新聞退出前十。"
+        },
+        {
+          "qid": "Q09",
+          "articles": [
+            {"id": "15352", "title": "削減預算赤字恐難改善貿易逆差", "topics": ["trade"], "ranks": {"tfidf": 1, "cbow": 18, "skipgram": 13}},
+            {"id": "20082", "title": "美元續跌恐加重美國貿易逆差", "topics": ["money-fx"], "ranks": {"tfidf": 4, "cbow": 1, "skipgram": 3}},
+            {"id": "17916", "title": "芬蘭第一季經常帳赤字", "topics": ["bop"], "ranks": {"tfidf": 5, "cbow": 41, "skipgram": 1}}
+          ],
+          "reading": "純 TF-IDF 把反覆提到 `trade deficit` 的新聞排第 1。加權 CBOW 裡，`trade` 和 `deficit` 合起來給美元匯率新聞更高分。加權 Skip-Gram 裡，`deficit` 給芬蘭經常帳新聞的優勢，超過另外兩詞給 #15352 的加分。匯率與經常帳也會談到逆差，這題用 Reuters 的 `trade` 標籤計命中。"
+        }
+      ],
+      "conclusion": "這 10 題中，兩種加權模型的平均 nDCG@10 都提升。Q06 的產量與價格用詞有助於區分原油新聞和公司收購新聞，Q09 的逆差用詞則讓匯率與經常帳報導排前。加權能否改善排序，取決於它強化的是目標主題還是相近的其他主題。"
+    },
+    "mixed": {
+      "cases": [
+        {
+          "qid": "Q06-M",
+          "articles": [
+            {"id": "17771", "title": "洪水迫使美國原油管線停運", "topics": ["crude"], "ranks": {"tfidf": 1661, "cbow": 18, "skipgram": 1}},
+            {"id": "17878", "title": "Esso 調高新加坡汽油零售價", "topics": ["gas"], "ranks": {"tfidf": 88, "cbow": 1, "skipgram": 92}},
+            {"id": "21523", "title": "載運飼料的貨輪失火並抽水", "topics": ["ship"], "ranks": {"tfidf": 2, "cbow": 894, "skipgram": 144}}
+          ],
+          "reading": "純 TF-IDF 把貨輪新聞排第 2，因為原文的 `pumped out` 在講抽水。加權 CBOW 裡，`paying` 給汽油價格新聞的加分較多，讓它排第 1。加權 Skip-Gram 裡，`pumped` 給原油管線新聞的加分較多。那篇用 `pipeline` 和 `crude oil` 描述原油運輸，和查詢詞沒有字面重疊，卻能在加權後排第 1。"
+        },
+        {
+          "qid": "Q09-M",
+          "articles": [
+            {"id": "17511", "title": "南韓下調對美商品進口關稅", "topics": ["trade"], "ranks": {"tfidf": 278, "cbow": 1, "skipgram": 24}},
+            {"id": "18996", "title": "OECD 呼籲美國削減預算赤字", "topics": ["bop", "gnp", "jobs"], "ranks": {"tfidf": 2, "cbow": 163, "skipgram": 8}},
+            {"id": "19040", "title": "台幣與外匯存底增速放緩", "topics": ["money-fx", "reserves"], "ranks": {"tfidf": 355, "cbow": 49, "skipgram": 1}}
+          ],
+          "reading": "純 TF-IDF 靠 `running`、`deficit` 的重疊，把預算赤字新聞排第 2。加權 CBOW 裡，`countries`、`buying` 和 `sell` 等詞讓南韓進口關稅新聞更接近查詢，從第 278 名升到第 1。加權 Skip-Gram 裡，`abroad` 和 `buying` 等詞給台灣匯率報導更多分，讓它排第 1。這題的命中按 `trade` 主題計算，南韓新聞談的是貿易順差與降關稅。"
+        },
+        {
+          "qid": "Q02-M",
+          "articles": [
+            {"id": "16434", "title": "Irving Bank 第一季淨利下滑", "topics": ["earn"], "ranks": {"tfidf": 1, "cbow": 24, "skipgram": 3}},
+            {"id": "15619", "title": "Dayton Hudson 三月零售銷售下滑", "topics": [], "ranks": {"tfidf": 690, "cbow": 1, "skipgram": 314}}
+          ],
+          "reading": "純 TF-IDF 依 `net` 和 `income` 的字面重疊，把明寫第一季淨利的銀行財報排第 1。加權 CBOW 裡，`three` 和 `months` 給零售銷售報導的優勢蓋過了 `income` 給銀行財報的加分，於是零售新聞升到第 1。加權 Skip-Gram 在這兩篇中仍把銀行財報排得更前面。"
+        }
+      ],
+      "conclusion": "這 10 題中，兩種加權模型的平均 nDCG@10 都高於純 TF-IDF。個別題的方向仍會不同，像是 Q09-M 的貿易線索讓 CBOW 提升，而 Q02-M 的時間用詞把 CBOW 拉向零售銷售新聞。混用保留了主題關鍵字，但補進去的詞仍會改變整句查詢指向的主題。"
+    }
+  }
+}

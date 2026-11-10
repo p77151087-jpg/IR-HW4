@@ -1,0 +1,26 @@
+{
+  "run": "grid-d100-w2-e5",
+  "model_manifest_sha256": "50eacf14caedb3155fb073c3726c800f8528f71807eac2ea6616e3bbdea3ac66",
+  "query": "oil output prices",
+  "nearest_to_oil": "crude",
+  "documents": {
+    "18678": {
+      "rank": 25,
+      "score": 0.7697227424478019,
+      "contributions": {
+        "oil": 0.2855987741079365,
+        "output": 0.27043956057812263,
+        "prices": 0.2136844077617429
+      }
+    },
+    "14892": {
+      "rank": 2,
+      "score": 0.7963082105167223,
+      "contributions": {
+        "oil": 0.23956790932305824,
+        "output": 0.3273134873761656,
+        "prices": 0.2294268138174985
+      }
+    }
+  }
+}

@@ -136,6 +136,40 @@ def test_tsne_shows_original_neighbors_and_evidence_on_both_maps(word_app):
     assert all("原始 cosine" in text and "2 維距離" not in text for text in pair_metrics)
 
 
+def test_full_pca_projects_all_model_words_and_keeps_top_five_analysis(word_app):
+    from ir_hw4.experiment_ui import DEFAULT_MODEL_RUN
+    from ir_hw4.experiments import experiment_paths
+
+    app = word_app
+    center = app.text_input(key="word_input").value
+    original = [element.value for element in app.dataframe[:2]]
+    app.radio(key="word_map_view").set_value("PCA 空間").run()
+    scope = app.radio(key="word_projection_limit")
+    assert scope.value == "前 5 詞" and scope.options == ["前 5 詞", "全部詞"]
+    scope.set_value("全部詞").run()
+    assert not app.exception
+    assert all(element.value.equals(table) for element, table in zip(app.dataframe[:2], original, strict=True))
+    run, _ = experiment_paths(DEFAULT_MODEL_RUN)
+    charts = app.get("vega_lite_chart")[-2:]
+    for method, chart, table in zip(("cbow", "skipgram"), charts, original, strict=True):
+        vocabulary = json.loads((run / method / "vocabulary.json").read_text(encoding="utf-8"))
+        spec = json.loads(chart.proto.spec)
+        symbols = next(layer for layer in spec["layer"] if layer["mark"]["type"] == "point")
+        dataset = next(item for item in chart.proto.datasets if item.name == symbols["data"]["name"])
+        points = pa.ipc.open_stream(dataset.data.data).read_pandas().sort_values("rank")
+        assert len(points) == len(vocabulary) and set(points["word"]) == set(vocabulary)
+        assert points.iloc[0]["word"] == center and not points[["x", "y"]].isna().any().any()
+        assert points.iloc[1:6]["word"].tolist() == table["鄰近詞"].tolist()
+        assert points.iloc[1:6]["cosine"].tolist() == pytest.approx(table["cosine"].tolist())
+
+    key = f"pca_first_cbow_{center}_{DEFAULT_MODEL_RUN}"
+    last_neighbor = app.selectbox(key=key).options[-1]
+    app.selectbox(key=key).select(last_neighbor).run()
+    assert not app.exception and app.selectbox(key=key).value == last_neighbor
+    app.radio(key="word_projection_limit").set_value("前 5 詞").run()
+    assert not app.exception and app.selectbox(key=key).value == center
+
+
 def test_search_blank_oov_and_semantic_query(app):
     navigate(app, "新聞搜尋與比較")
     assert len(app.dataframe[0].value) == 10
@@ -213,34 +247,34 @@ def test_embedding_weighting_comparison_shows_extrema_and_current_models(app):
     app.radio(key="search_effect_scope").set_value("三種問法總覽").run()
     overview = app.table[0].value
     assert overview.loc[overview["指標"] == "nDCG@10"].values.tolist() == [
-        ["關鍵字 10／10 題", "nDCG@10", "0.8840", "0.9206（+0.0365）", "0.9526（+0.0685）"],
-        ["模糊句 10／10 題", "nDCG@10", "0.5135", "0.4870（-0.0265）", "0.6919（+0.1784）"],
-        ["混用 10／10 題", "nDCG@10", "0.7497", "0.8490（+0.0993）", "0.8256（+0.0759）"],
+        ["關鍵字 10／10 題", "nDCG@10", "0.8840", "0.9203（+0.0363）", "0.9291（+0.0450）"],
+        ["模糊句 10／10 題", "nDCG@10", "0.5135", "0.4808（-0.0327）", "0.7012（+0.1877）"],
+        ["混用 10／10 題", "nDCG@10", "0.7497", "0.8387（+0.0890）", "0.8508（+0.1011）"],
     ]
-    assert overview.iloc[-1].tolist()[1:] == ["MRR", "0.9333", "0.9000（-0.0333）", "0.8250（-0.1083）"]
+    assert overview.iloc[-1].tolist()[1:] == ["MRR", "0.9333", "0.8500（-0.0833）", "0.9333（持平）"]
     app.radio(key="search_effect_scope").set_value("目前查詢")
     app.selectbox(key="query_preset").select("Q06").run()
     assert any("**Q01 · 關鍵字**" in item.value for item in app.markdown)
     submit_search(app)
     cbow, skipgram = [element.value for element in app.html if 'class="weighting-pair"' in element.value]
-    assert "0.6851</strong>" in cbow and "P@10 <b>0.8000</b>" in cbow and "RR <b>0.5000</b>" in cbow
-    assert "0.9052</strong>" in skipgram and "P@10 <b>0.9000</b>" in skipgram
+    assert "0.7760</strong>" in cbow and "P@10 <b>0.8000</b>" in cbow and "RR <b>1.0000</b>" in cbow
+    assert "0.9149</strong>" in skipgram and "P@10 <b>0.9000</b>" in skipgram
     assert "並列最高" in cbow
 
     app.selectbox(key="query_preset").select("Q09-F").run()
     submit_search(app)
     assert any("**Q09-F · 模糊句**" in item.value for item in app.markdown)
     cbow = next(element.value for element in app.html if 'class="weighting-pair"' in element.value)
-    assert "0.0694</strong>" in cbow and "RR <b>0.0667</b>" in cbow and "RR <b>0.1250</b>" in cbow
+    assert "0.0734</strong>" in cbow and "RR <b>0.0588</b>" in cbow and "RR <b>0.1429</b>" in cbow
     assert "參數排名 <strong>全部同分</strong><small>共 18 組</small>" in cbow
-    assert app.table[0].value.iloc[0]["加權 CBOW"].startswith("0.0694")
+    assert app.table[0].value.iloc[0]["加權 CBOW"].startswith("0.0734")
 
     app.radio(key="embedding_weighting_metric").set_value("mrr").run()
     cbow = next(element.value for element in app.html if 'class="weighting-pair"' in element.value)
     unweighted, weighted = cbow.split('class="weighting-score weighting-weighted"')
-    assert "<span>RR</span><strong>0.0667</strong>" in unweighted
-    assert "參數排名 <strong>第 1 名</strong>" in unweighted
-    assert "<span>RR</span><strong>0.1250</strong>" in weighted
+    assert "<span>RR</span><strong>0.0588</strong>" in unweighted
+    assert "參數排名 <strong>第 2 名</strong>" in unweighted
+    assert "<span>RR</span><strong>0.1429</strong>" in weighted
     assert "最高</span><strong>0.1429</strong><code>v300-w15-e5</code>" in weighted
 
     app.radio(key="embedding_weighting_scope").set_value("關鍵字 10 題平均").run()
@@ -250,15 +284,15 @@ def test_embedding_weighting_comparison_shows_extrema_and_current_models(app):
 
     app.radio(key="embedding_weighting_metric").set_value("p10").run()
     _, skipgram = [element.value for element in app.html if 'class="weighting-pair"' in element.value]
-    assert "<span>平均 Precision@10</span><strong>0.9400</strong>" in skipgram
-    assert "加權差值 -0.0100" in skipgram
+    assert "<span>平均 Precision@10</span><strong>0.9300</strong>" in skipgram
+    assert "加權差值 -0.0200" in skipgram
     grids = [element.value for element in app.dataframe if "加權 Precision@10" in element.value]
     selected = grids[1].set_index("參數").loc["v100-w15-e15"]
     assert selected["加權 Precision@10"] == "0.9400（第 1 名）" and selected["加權差值"] == "-0.0100"
     app.radio(key="embedding_weighting_metric").set_value("ndcg10").run()
 
-    for scope, suffix, before, after in (("模糊句 10 題平均", "F", "0.5014", "0.4870"),
-                                         ("混用 10 題平均", "M", "0.8599", "0.8490")):
+    for scope, suffix, before, after in (("模糊句 10 題平均", "F", "0.4995", "0.4808"),
+                                         ("混用 10 題平均", "M", "0.8562", "0.8387")):
         app.radio(key="embedding_weighting_scope").set_value(scope).run()
         questions = next(element.value for element in app.table if "題號" in element.value)
         assert questions["題號"].tolist() == [f"Q{index:02d}-{suffix}" for index in range(1, 11)]
@@ -272,10 +306,10 @@ def test_embedding_weighting_comparison_shows_extrema_and_current_models(app):
     cbow, skipgram = [element.value for element in app.html if 'class="weighting-pair"' in element.value]
     assert "MRR <b>" in cbow and "MRR <b>" in skipgram
     expected = (
-        (cbow, "v100-w15-e5", ("0.8970", "第 5 名", "0.9130", "v300-w15-e5", "0.7675", "v100-w2-e5"),
-         ("0.9206", "第 1 名", "0.9206", "v100-w15-e5", "0.7958", "v150-w2-e5")),
-        (skipgram, "v100-w15-e15", ("0.9436", "第 2 名", "0.9474", "v150-w15-e15", "0.8395", "v150-w2-e5"),
-         ("0.9526", "第 1 名", "0.9526", "v100-w15-e15", "0.8148", "v300-w2-e5")),
+        (cbow, "v300-w15-e5", ("0.9130", "第 1 名", "0.9130", "v300-w15-e5", "0.7675", "v100-w2-e5"),
+         ("0.9203", "並列第 2 名", "0.9206", "v100-w15-e5", "0.7958", "v150-w2-e5")),
+        (skipgram, "v150-w15-e15", ("0.9474", "第 1 名", "0.9474", "v150-w15-e15", "0.8395", "v150-w2-e5"),
+         ("0.9291", "第 3 名", "0.9526", "v100-w15-e15", "0.8148", "v300-w2-e5")),
     )
     for card, selected, unweighted, weighted in expected:
         assert f"目前選取</span><code>{selected}</code>" in card
@@ -283,7 +317,7 @@ def test_embedding_weighting_comparison_shows_extrema_and_current_models(app):
         for panel, stats in zip(panels, (unweighted, weighted), strict=True):
             score, rank, high, high_params, low, low_params = stats
             assert f"<span>平均 nDCG@10</span><strong>{score}</strong>" in panel
-            assert f"參數排名 <strong>{rank}</strong><small>共 18 組</small>" in panel
+            assert f"參數排名 <strong>{rank}</strong><small>共 18 組" in panel
             assert f"最高</span><strong>{high}</strong><code>{high_params}</code>" in panel
             assert f"最低</span><strong>{low}</strong><code>{low_params}</code>" in panel
     grids = [element.value for element in app.dataframe if "單用 nDCG@10" in element.value]
@@ -353,6 +387,7 @@ def test_search_query_variants_score_the_same_topic_as_the_keyword_query(app):
 
 
 def test_search_compares_two_saved_runs_for_the_same_query(app):
+    from ir_hw4.embedding_weighting import COMPARISON
     from ir_hw4.evaluation import query_bank
     from ir_hw4.experiment_ui import REFERENCE_RUNS
     from ir_hw4.experiments import completed_experiments, read_experiment
@@ -363,8 +398,8 @@ def test_search_compares_two_saved_runs_for_the_same_query(app):
         pytest.skip("The two saved 15-epoch runs are required for this comparison")
     query = query_bank()[0]
     navigate(app, "新聞搜尋與比較")
-    best_runs = {"cbow": "grid-d100-w15-e5", "skipgram": "grid-d100-w15-e15"}
-    reference_ready = set(REFERENCE_RUNS).issubset(finished)
+    standalone_ready = set(REFERENCE_RUNS).issubset(finished) and (COMPARISON / "manifest.json").is_file()
+    standalone_best_runs = {"cbow": "grid-d300-w15-e5", "skipgram": "grid-d150-w15-e15"}
     search_options = {}
     for method, window in (("cbow", 2), ("skipgram", 5)):
         picker = app.selectbox(key=f"search_{method}_run")
@@ -372,8 +407,8 @@ def test_search_compares_two_saved_runs_for_the_same_query(app):
         search_options[method] = labels
         assert any(label.startswith(f"150 維 · 窗口 {window} · 15 輪") for label in labels)
         assert all("30 輪" not in label for label in labels)
-        if reference_ready:
-            assert picker.value == best_runs[method]
+        if standalone_ready:
+            assert picker.value == standalone_best_runs[method]
             assert any(label.endswith((" (最高)", " (並列最高)")) for label in labels)
             assert any(label.endswith((" (最低)", " (並列最低)")) for label in labels)
     lexical, _, original_skipgram = [element.value for element in app.dataframe[:3]]
@@ -392,12 +427,10 @@ def test_search_compares_two_saved_runs_for_the_same_query(app):
     app.radio(key="search_effect_scope").set_value("關鍵字 10 題平均").run()
     effect = app.table[0].value.iloc[0]
     assert effect["TF-IDF"] == "0.8840"
-    selected_scores = {}
     for index, method, name, label in ((1, "cbow", cbow_run, "加權 CBOW"),
                                        (2, "skipgram", skipgram_run, "加權 Skip-Gram")):
         _, output, _, evaluation = read_experiment(name)
         score = next(row["ndcg10"] for row in evaluation["summary"] if row["method"] == method)
-        selected_scores[method] = score
         assert effect[label].startswith(f"{score:.4f}（")
         with (output / "rankings.csv").open(encoding="utf-8-sig", newline="") as stream:
             expected = [row for row in csv.DictReader(stream)
@@ -408,22 +441,26 @@ def test_search_compares_two_saved_runs_for_the_same_query(app):
     navigate(app, "詞向量分析")
     assert app.selectbox(key="word_preset").value == app.text_input(key="word_input").value == "earnings"
     assert "earnings 的 Top-5 近鄰" in [element.value for element in app.subheader]
+    word_loss_labels = {
+        "cbow": ["最高（目前選取）｜300 維 · 窗口 15 · 5 輪｜0.9130", "最低｜100 維 · 窗口 2 · 5 輪｜0.7675"],
+        "skipgram": ["最高（目前選取）｜150 維 · 窗口 15 · 15 輪｜0.9474", "最低｜150 維 · 窗口 2 · 5 輪｜0.8395"],
+    }
     for method, labels in search_options.items():
         picker = app.selectbox(key=f"word_{method}_run")
         assert picker.options == labels
-        if reference_ready:
-            assert picker.value == best_runs[method]
-    if reference_ready:
+        if standalone_ready:
+            assert picker.value == standalone_best_runs[method]
+            high, low = (label.split("｜")[1] for label in word_loss_labels[method])
+            assert f"{high} (最高)" in picker.options and f"{low} (最低)" in picker.options
+    if standalone_ready:
         assert app.subheader[0].value == "訓練 Loss 比較"
         loss_charts = app.get("vega_lite_chart")[:2]
         assert len(loss_charts) == 2
-        for chart, (epochs, score) in zip(loss_charts, ((5, 0.9206), (15, 0.9526)), strict=True):
+        for chart, expected in zip(loss_charts, word_loss_labels.values(), strict=True):
             spec = json.loads(chart.proto.spec)
             legend = spec["encoding"]["color"]
-            assert legend["title"] == "平均 nDCG@10"
-            high, low = legend["scale"]["domain"]
-            assert high == f"最高（目前選取）｜100 維 · 窗口 15 · {epochs} 輪｜{score:.4f}"
-            assert low.startswith("最低｜")
+            assert legend["title"] == "單用詞向量的平均 nDCG@10"
+            assert legend["scale"]["domain"] == expected
     skipgram_neighbors = app.dataframe[1].value.copy()
     app.selectbox(key="word_cbow_run").select(cbow_run).run()
     assert not app.exception and app.dataframe[1].value.equals(skipgram_neighbors)
@@ -439,25 +476,24 @@ def test_search_compares_two_saved_runs_for_the_same_query(app):
         frame = app.dataframe[index].value
         assert frame["鄰近詞"].tolist() == [row["word"] for row in expected]
         assert frame["cosine"].tolist() == pytest.approx([float(row["cosine"]) for row in expected])
-    if reference_ready:
-        for chart, (method, name, window) in zip(app.get("vega_lite_chart")[:2],
-                                                 (("cbow", cbow_run, 2), ("skipgram", skipgram_run, 5)), strict=True):
+    if standalone_ready:
+        for chart, (method, name, window, score) in zip(app.get("vega_lite_chart")[:2],
+                                                        (("cbow", cbow_run, 2, "0.8508"),
+                                                         ("skipgram", skipgram_run, 5, "0.9196")), strict=True):
             spec = json.loads(chart.proto.spec)
             dataset = next(data for data in chart.proto.datasets if data.name == spec["data"]["name"])
             points = pa.ipc.open_stream(dataset.data.data).read_pandas()
-            selected_label = f"目前選取｜150 維 · 窗口 {window} · 15 輪｜{selected_scores[method]:.4f}"
+            selected_label = f"目前選取｜150 維 · 窗口 {window} · 15 輪｜{score}"
             selected_line = points.loc[points["series"] == selected_label]
             with (ROOT / "artifacts" / "experiments" / name / method / "epoch_losses.csv").open(encoding="utf-8-sig") as stream:
                 saved = list(csv.DictReader(stream))
             assert selected_line["epoch"].tolist() == [int(row["epoch"]) for row in saved]
             assert selected_line["loss_delta"].tolist() == pytest.approx([float(row["loss_delta"]) for row in saved])
 
-        app.selectbox(key="word_cbow_run").select(best_runs["cbow"]).run()
+        app.selectbox(key="word_cbow_run").select(standalone_best_runs["cbow"]).run()
         assert not app.exception and not app.error
         spec = json.loads(app.get("vega_lite_chart")[0].proto.spec)
-        assert spec["encoding"]["color"]["scale"]["domain"] == [
-            "最高（目前選取）｜100 維 · 窗口 15 · 5 輪｜0.9206", "最低｜150 維 · 窗口 2 · 5 輪｜0.7958",
-        ]
+        assert spec["encoding"]["color"]["scale"]["domain"] == word_loss_labels["cbow"]
 
 
 def test_experiment_scorecard_rejects_changed_scores_without_loading_model_weights(tmp_path, monkeypatch):

@@ -115,7 +115,7 @@ def score_extreme_marks(scores):
             for name, score in rounded.items() if score in (low, high)}
 
 
-def reference_model_extremes(options):
+def reference_model_extremes(options, *, ndcg10_by_model=None):
     """Return the verified reference-grid extrema for model controls and Loss charts."""
     if not all(name in options and options[name].keys() == WORD_MODELS.keys() for name in REFERENCE_RUNS):
         return {}
@@ -123,10 +123,11 @@ def reference_model_extremes(options):
     try:
         inputs = scorecard_inputs()
         runs = {name: checked_scorecard(name, *inputs) for name in REFERENCE_RUNS}
-        summaries = {name: {row["method"]: row["ndcg10"] for row in result["summary"]}
-                     for name, (_, _, result) in runs.items()}
+        if ndcg10_by_model is None:
+            ndcg10_by_model = {(name, row["method"]): row["ndcg10"]
+                               for name, (_, _, result) in runs.items() for row in result["summary"]}
         for method in WORD_MODELS:
-            scores = {name: summary[method] for name, summary in summaries.items()}
+            scores = {name: ndcg10_by_model[name, method] for name in REFERENCE_RUNS}
             if all(score is not None for score in scores.values()):
                 for name, mark in score_extreme_marks(scores).items():
                     run, manifest, _ = runs[name]
@@ -367,8 +368,8 @@ def show_run_losses(run, settings):
         col.altair_chart(loss_chart(losses), width="stretch")
 
 
-def compare_extreme_losses(extremes, selected=None):
-    st.caption("最高與最低依 18 組參考實驗在固定十個查詢上的平均 nDCG@10，各架構分開排名。"
+def compare_extreme_losses(extremes, selected=None, *, score_label="平均 nDCG@10"):
+    st.caption(f"最高與最低依 18 組參考實驗在固定十個查詢上的{score_label}，各架構分開排名。"
                "同張圖的曲線共用縱軸，各自停在最後一輪。")
     selected = selected or {}
     for col, (model, label) in zip(st.columns(2, gap="large"), WORD_MODELS.items()):
@@ -392,7 +393,7 @@ def compare_extreme_losses(extremes, selected=None):
         except (ValueError, OSError, KeyError, TypeError) as error:
             col.error(f"{label} 的 Loss 無法顯示。{error}")
             continue
-        col.altair_chart(loss_chart(frame, legend_title="平均 nDCG@10"), width="stretch")
+        col.altair_chart(loss_chart(frame, legend_title=score_label), width="stretch")
 
 
 def loss_panel():

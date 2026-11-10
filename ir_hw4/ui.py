@@ -8,11 +8,10 @@ import numpy as np
 import pandas as pd
 import altair as alt
 import streamlit as st
-from sklearn.manifold import TSNE
 
 from .config import ROOT, RUN, METHODS, TOPICS, ANALYSIS_WORDS, README_URL
 from .dataset import load_data
-from .embedding_weighting import read_comparison, search_query_bank, unweighted_scores, weighted_query_score
+from .embedding_weighting import COMPARISON, read_comparison, search_query_bank, unweighted_scores, weighted_query_score
 from .evaluation import query_bank, evaluate, metrics
 from .experiment_ui import (
     DEFAULT_MODEL_RUN, REFERENCE_RUNS, checked_bytes, compare_extreme_losses, completed_manifests,
@@ -25,6 +24,7 @@ from .sentences import split_sentences
 from .text import TOKEN_RE, terms, document_blocks, document_text, normalize
 from .training import load_engine
 from .analysis import WORD_MODELS, analysis_signature, load_analysis, checked_evaluation, excerpt, pair_evidence
+from .word_projection import get_vocabulary_projection, project_neighbor_space
 
 PAGES = ["資料概況", "詞向量分析", "新聞搜尋與比較", "效果評估"]
 COLORS = ["#173F50", "#C66B3D", "#749385"]
@@ -51,6 +51,15 @@ CONTEXT_NEIGHBORS = {
     "wheat": {"barley", "corn", "soybeans", "winter"},
     "grain": {"soybeans", "sugar"},
     "trade": {"invisibles", "retaliation", "gatt", "warn", "full-scale", "aggravation", "tensions", "deplore"},
+}
+TSNE_TOPIC_WORDS = {
+    "穀物與農作": ("wheat", "corn", "barley", "oats", "sorghum", "soybeans", "maize", "rice", "grain", "rapeseed"),
+    "航運": ("ship", "ships", "shipping", "vessels", "vessel", "tanker", "tankers"),
+    "貨幣與匯率": ("dollar", "yen", "currency", "currencies", "sterling", "franc", "exchange", "devaluation"),
+    "貴金屬報價": ("gold", "silver", "platinum", "palladium", "bullion", "ounce", "ounces"),
+    "原油與天然氣": ("oil", "crude", "petroleum", "gas", "propane", "liquids", "shut-in", "kerosene", "barrels"),
+    "企業財報": ("earnings", "profit", "profits", "income", "loss", "losses", "revenues", "sales", "operating"),
+    "企業併購": ("merger", "acquisition", "buyout", "takeover", "takeovers", "acquisitions", "mergers", "bid", "tender"),
 }
 
 
@@ -91,7 +100,7 @@ def model_run_selectbox(col, method, configs, marks, key):
                     if model == method and mark.endswith("最高")), DEFAULT_MODEL_RUN)
     return col.selectbox(label, names, index=names.index(default) if default in names else 0,
                          key=key, format_func=picker_labels.__getitem__, disabled=len(names) == 1,
-                         help="各架構的 18 組參考參數依關鍵字 10 題的平均加權 nDCG@10 標註最高與最低。")
+                         help="各架構的 18 組參考參數依固定 10 題關鍵字查詢的單用詞向量平均 nDCG@10 標註最高與最低。")
 
 
 @st.cache_data(show_spinner=False)
@@ -616,34 +625,12 @@ def neighbor_similarity_chart(word, points, color, insights):
     ).configure_view(strokeOpacity=0)
 
 
-@st.cache_data(show_spinner=False, max_entries=128)
-def tsne_coordinates(units, perplexity):
-    if len(np.unique(units.round(12), axis=0)) < 3:
-        return None
-    xy = TSNE(n_components=2, perplexity=perplexity, init="random", random_state=42,
-              method="exact").fit_transform(units)
-    if not np.isfinite(xy).all():
-        return None
-    return xy - (xy.min(axis=0) + xy.max(axis=0)) / 2
+cached_neighbor_projection = st.cache_data(show_spinner=False, max_entries=128)(project_neighbor_space)
 
 
-def project_neighbor_space(model, words, method):
-    """Project one model's center word and its own ranked neighbors."""
-    vocabulary, vectors = model
-    positions = {term: index for index, term in enumerate(vocabulary)}
-    units = unit_rows(np.asarray([vectors[positions[term]] for term in words], dtype=np.float64))
-    cosine = np.clip(units @ units.T, -1., 1.)
-    if method == "t-SNE":
-        perplexity = min(5., max(1., (len(words) - 1) / 3))
-        return {"xy": tsne_coordinates(units, perplexity), "cosine": cosine, "perplexity": perplexity}
-    centered = units - units.mean(axis=0)
-    u, singular, _ = np.linalg.svd(centered, full_matrices=False)
-    variance = singular ** 2
-    total = variance.sum()
-    xy = np.zeros((len(words), 2))
-    components = min(2, len(singular))
-    xy[:, :components] = u[:, :components] * singular[:components]
-    return {"xy": xy, "cosine": cosine, "retained": float(variance[:2].sum() / total) if total else 0.}
+@st.cache_data(show_spinner="正在準備全部詞的投影…", max_entries=12)
+def project_vocabulary(model_signature, architecture, method, _vectors):
+    return get_vocabulary_projection(model_signature, architecture, method, _vectors)
 
 
 def projection_labels(frame, extent, side):
@@ -678,13 +665,73 @@ def projection_labels(frame, extent, side):
     return pd.DataFrame(labels, columns=["label", "label_x", "label_y", "x", "y", "end_x", "end_y"])
 
 
-def word_space_chart(words, projection, extent, color, method, insights):
+def tsne_topic_regions(words, xy, extent):
+    """Choose up to three separated regions supported by nearby topic examples."""
+    coordinates = dict(zip(words, xy, strict=True))
+    candidates = []
+    for topic, examples in TSNE_TOPIC_WORDS.items():
+        terms = [term for term in examples if term in coordinates]
+        if len(terms) < 3:
+            continue
+        locations = np.array([coordinates[term] for term in terms])
+        distances = np.linalg.norm(locations[:, None] - locations[None, :], axis=2)
+        nearby = distances <= .13 * extent
+        seed = max(range(len(terms)), key=lambda i: (nearby[i].sum(), -distances[i, nearby[i]].sum()))
+        members = nearby[seed]
+        if members.sum() < 3:
+            continue
+        center = locations[members].mean(axis=0)
+        radius = float(np.linalg.norm(locations[members] - center, axis=1).max()) + .025 * extent
+        radius = max(radius, .06 * extent)
+        if np.abs(center).max() + radius <= extent:
+            candidates.append({"topic": topic, "center": center, "radius": radius,
+                               "terms": tuple(term for term, keep in zip(terms, members) if keep)})
+
+    selected = []
+    for region in sorted(candidates, key=lambda item: (-len(item["terms"]), item["radius"])):
+        if any(np.linalg.norm(region["center"] - other["center"]) <= region["radius"] + other["radius"] + .07 * extent
+               for other in selected):
+            continue
+        selected.append(region)
+        if len(selected) == 3:
+            break
+    return selected
+
+
+def tsne_topic_layers(regions, frame, extent, x, y, tooltips):
+    color = "#744493"
+    angles = np.linspace(0, 2 * np.pi, 49)
+    directions = np.column_stack((np.cos(angles), np.sin(angles)))
+    rings, titles, topics_by_term = [], [], {}
+    for region in regions:
+        topic, center, radius = region["topic"], region["center"], region["radius"]
+        for step, (cx, cy) in enumerate(center + radius * directions):
+            rings.append({"topic": topic, "step": step, "x": cx, "y": cy})
+        titles.append({"topic": topic, "x": np.clip(center[0], -.74 * extent, .74 * extent),
+                       "y": min(center[1] + radius, .89 * extent)})
+        topics_by_term.update(dict.fromkeys(region["terms"], topic))
+
+    outline = alt.Chart(pd.DataFrame(rings)).mark_line(
+        color=color, strokeWidth=1.6, strokeDash=[5, 3], opacity=.9, clip=True, aria=False,
+    ).encode(x=x, y=y, detail="topic:N", order="step:Q")
+    examples = frame.loc[frame["word"].isin(topics_by_term) & (frame["rank"] > 5)].copy()
+    examples["topic"] = examples["word"].map(topics_by_term)
+    example_points = alt.Chart(examples).mark_point(filled=True, color=color, size=38, opacity=.95, clip=True).encode(
+        x=x, y=y, tooltip=[*tooltips, alt.Tooltip("topic:N", title="代表詞群")],
+    )
+    labels = alt.Chart(pd.DataFrame(titles)).encode(x=x, y=y, text="topic:N")
+    label_style = dict(fontSize=12, fontWeight="bold", baseline="bottom", dy=-4, clip=True)
+    halo = labels.mark_text(color="#F7F7F3", stroke="#F7F7F3", strokeWidth=3, aria=False, **label_style)
+    return outline, example_points, halo, labels.mark_text(color=color, **label_style)
+
+
+def word_space_chart(words, xy, cosine, extent, color, method, insights, *, pan_zoom=False, topic_regions=()):
     side = 304
-    xy = projection["xy"]
     frame = pd.DataFrame([
-        {"word": term, "x": xy[i, 0], "y": xy[i, 1], "cosine": projection["cosine"][0, i],
+        {"word": term, "x": xy[i, 0], "y": xy[i, 1], "cosine": cosine[i],
          "rank": i, "label": f"{i} · {term}" if i else term,
-         "kind": "本模型 Top-5" if i else "中心詞", **neighbor_context(term, insights)}
+         "kind": "近鄰" if i else "中心詞",
+         **(neighbor_context(term, insights) if i <= 5 else {})}
         for i, term in enumerate(words)
     ])
     pca = method == "PCA"
@@ -697,42 +744,77 @@ def word_space_chart(words, projection, extent, color, method, insights):
     x = alt.X("x:Q", scale=scale, axis=x_axis)
     y = alt.Y("y:Q", scale=scale, axis=y_axis)
     base = alt.Chart(frame).encode(x=x, y=y)
-    tooltips = [alt.Tooltip("word:N", title="詞"), alt.Tooltip("kind:N", title="圖例"),
+    tooltips = [alt.Tooltip("label:N", title="詞與名次"), alt.Tooltip("kind:N", title="圖例"),
                 alt.Tooltip("cosine:Q", title="與中心詞的原始 cosine", format=".6f")]
     if pca:
         tooltips.extend([alt.Tooltip("x:Q", title="PC1", format=".4f"), alt.Tooltip("y:Q", title="PC2", format=".4f")])
-    symbols = base.mark_point(filled=True, color=color, size=100, opacity=1).encode(
-        shape=alt.Shape("kind:N", scale=alt.Scale(domain=["中心詞", "本模型 Top-5"],
+    if len(words) <= 6:
+        tooltips.extend(insight_tooltips())
+    symbols = base.mark_point(filled=True, color=color, clip=pan_zoom).encode(
+        shape=alt.Shape("kind:N", scale=alt.Scale(domain=["中心詞", "近鄰"],
                                                   range=["square", "circle"]), legend=None),
-        tooltip=[*tooltips, *insight_tooltips()],
+        size=alt.condition(alt.datum.rank <= 5, alt.value(100), alt.value(8)),
+        opacity=alt.condition(alt.datum.rank <= 5, alt.value(1), alt.value(.22)),
+        order=alt.Order("rank:Q", sort="descending"),
+        tooltip=tooltips,
     )
-    labels = alt.Chart(projection_labels(frame, extent, side))
-    leaders = labels.mark_rule(color="#839194", opacity=.6).encode(x=x, y=y, x2="end_x:Q", y2="end_y:Q")
-    text = labels.mark_text(align="left", fontSize=12, limit=123).encode(
+    if pan_zoom:
+        symbols = symbols.interactive(name="projection_view")
+    labels = alt.Chart(projection_labels(frame.iloc[:6], extent, side))
+    leaders = labels.mark_rule(color="#839194", opacity=.6, clip=pan_zoom).encode(
+        x=x, y=y, x2="end_x:Q", y2="end_y:Q")
+    text = labels.mark_text(align="left", fontSize=12, limit=123, clip=pan_zoom).encode(
         x=alt.X("label_x:Q", scale=scale, axis=x_axis), y=alt.Y("label_y:Q", scale=scale, axis=y_axis), text="label:N")
-    return (leaders + symbols + text).properties(
+    layers = [leaders, symbols, text]
+    if topic_regions:
+        outline, example_points, halo, group_labels = tsne_topic_layers(topic_regions, frame, extent, x, y, tooltips)
+        layers = [leaders, symbols, outline, example_points, text, halo, group_labels]
+    chart = alt.layer(*layers).properties(
         width=side, height=side, autosize=alt.AutoSizeParams(type="pad", contains="content"),
     ).configure_view(strokeOpacity=0)
+    if pan_zoom:
+        chart = chart.properties(usermeta={"embedOptions": {"renderer": "canvas"}})
+    return chart
 
 
-def word_projection_panel(model, word, points, method, color, insights, widget_suffix):
+def word_projection_panel(model, word, points, method, color, insights, widget_suffix, *, full_projection=None):
+    vocabulary, vectors = model
     words = [word, *(point["word"] for point in points)]
-    projection = project_neighbor_space(model, words, method)
-    dimensions = model[1].shape[1]
+    positions = {term: index for index, term in enumerate(vocabulary)}
+    indices = [positions[term] for term in words]
+    projection = full_projection or cached_neighbor_projection(vectors[indices], method)
+    dimensions = vectors.shape[1]
     xy = projection["xy"]
+    if full_projection is not None and xy is not None:
+        xy = xy[indices]
     pca = method == "PCA"
     if xy is None:
         st.info("t-SNE 需要至少 3 個不同的正規化向量。這組詞可用 PCA 或 Top-5 相似度查看。")
     else:
         extent = max(1., float(np.abs(xy).max()) * 1.12)
         if pca:
-            st.caption(f"{len(words)} 個詞 · 前兩軸保留 {projection['retained']:.1%} 的變異")
+            pc1, pc2 = projection["variance_ratio"]
+            var1, var2 = projection["variance"]
+            st.caption(f"{len(words):,} 個詞 · X（PC1）**{pc1:.1%}** · Y（PC2）**{pc2:.1%}** · 合計 {pc1 + pc2:.1%}",
+                       help=f"正規化向量投影後的樣本變異量：X（PC1）{var1:.4f}，Y（PC2）{var2:.4f}。")
         else:
-            st.caption(f"{len(words)} 個詞 · perplexity {projection['perplexity']:.2f} · seed 42")
-        st.altair_chart(word_space_chart(words, projection, extent, color, method, insights), width="content")
+            st.caption(f"{len(words):,} 個詞 · perplexity {projection['perplexity']:.2f} · seed 42")
+        cosine = [1., *(point["cosine"] for point in points)]
+        topic_regions = tsne_topic_regions(words, xy, extent) if full_projection is not None and not pca else ()
+        chart = word_space_chart(words, xy, cosine, extent, color, method, insights,
+                                 pan_zoom=full_projection is not None, topic_regions=topic_regions)
+        st.altair_chart(chart, width="content")
+        if topic_regions:
+            with st.expander("查看圈內代表詞"):
+                for region in topic_regions:
+                    examples = "、".join(f"`{term}`" for term in region["terms"])
+                    st.markdown(f"**{region['topic']}**　{examples}")
     with st.expander("比較這張圖中的兩個詞"):
         a, b = st.columns(2)
-        first = a.selectbox("詞 A", words, key=f"pca_first_{widget_suffix}")
+        first_key = f"pca_first_{widget_suffix}"
+        if first_key in st.session_state and st.session_state[first_key] not in words:
+            st.session_state[first_key] = word
+        first = a.selectbox("詞 A", words, key=first_key)
         alternatives = [term for term in words if term != first]
         preferred = {"profit": "loss", "loss": "profit"}.get(word)
         default = preferred if preferred in alternatives else alternatives[0]
@@ -740,11 +822,12 @@ def word_projection_panel(model, word, points, method, color, insights, widget_s
         if second_key in st.session_state and st.session_state[second_key] not in alternatives:
             st.session_state[second_key] = default
         second = b.selectbox("詞 B", alternatives, index=alternatives.index(default), key=second_key)
-        i, j = words.index(first), words.index(second)
-        similarity = float(projection["cosine"][i, j])
+        left, right = unit_rows(vectors[[positions[first], positions[second]]].astype(np.float64))
+        similarity = float(np.clip(left @ right, -1., 1.))
         full_distance = np.sqrt(max(0., 2 - 2 * similarity))
         distance_line = f"原始 cosine **{similarity:.4f}**　·　{dimensions} 維距離 **{full_distance:.4f}**"
         if pca:
+            i, j = words.index(first), words.index(second)
             distance_line += f"　·　2 維距離 **{np.linalg.norm(xy[i] - xy[j]):.4f}**"
         st.markdown(distance_line)
         st.caption("完整向量距離由 √(2 − 2 × cosine) 算出。PCA 的 2 維距離量圖上的投影點。")
@@ -755,10 +838,27 @@ def neighbor_points(word, method, model_signature, _model):
     return [{"rank": rank, **row} for rank, row in enumerate(neighbors(*_model, word), 1)]
 
 
+@st.cache_data(show_spinner=False, max_entries=12)
+def vocabulary_neighbors(word, architecture, model_signature, _model):
+    return neighbors(*_model, word, k=len(_model[0]) - 1)
+
+
+def read_weighting_reference():
+    try:
+        report = read_comparison()
+        reference_scores = {(row["run"], row["method"]): row["unweighted_ndcg10"]
+                            for row in report["runs"]}
+    except (ValueError, OSError, KeyError, TypeError):
+        return None, {}
+    return report, reference_scores
+
+
 def word_analysis(signature):
     heading("02 / WORDS", "詞向量分析", "找出出現在相似上下文的詞，再回到新聞內容理解它們的關係。")
     options = website_experiment_configs()
-    extremes = reference_model_extremes(options)
+    _, reference_scores = read_weighting_reference()
+    score_label = "單用詞向量的平均 nDCG@10"
+    extremes = reference_model_extremes(options, ndcg10_by_model=reference_scores) if reference_scores else {}
     marks = {key: item[0] for key, item in extremes.items()}
     selected_runs = {}
     for col, method in zip(st.columns(2, gap="medium"), WORD_MODELS):
@@ -767,7 +867,8 @@ def word_analysis(signature):
     if None in selected_runs.values():
         return
 
-    st.caption("近鄰用於理解單詞之間的關係。選單的「最高」「最低」依關鍵字 10 題的平均加權 nDCG@10 標註。")
+    st.caption("單用詞向量時，查詢與新聞各自將詞向量等權平均。"
+               "選單的「最高」「最低」依固定 10 題關鍵字查詢的平均 nDCG@10 標註。")
 
     loaded_runs = {}
     models, metadata, model_signatures, selected_losses = {}, {}, {}, {}
@@ -775,12 +876,15 @@ def word_analysis(signature):
         try:
             if name not in loaded_runs:
                 loaded_runs[name] = checked_experiment_resources(name)
-            engine, manifest, evaluation, path = loaded_runs[name]
+            engine, manifest, _, path = loaded_runs[name]
             models[method] = engine.models[method]
             metadata[method] = manifest["models"][method]
             model_signatures[method] = sha256(path / "manifest.json")
             loss_digest = manifest["artifacts_sha256"][f"{method}/epoch_losses.csv"]
-            score = next((row["ndcg10"] for row in evaluation["summary"] if row["method"] == method), None)
+            score = reference_scores.get((name, method))
+            if score is None:
+                per_query = selected_unweighted_scores(model_signatures[method], method, query_bank(), engine)
+                score = float(np.mean([row["ndcg10"] for row in per_query]))
             selected_losses[method] = (path, metadata[method]["config"], loss_digest, score)
         except (ValueError, OSError, KeyError, TypeError) as error:
             st.error(f"{WORD_MODELS[method]} 的 {name} 無法載入。{error}")
@@ -794,7 +898,7 @@ def word_analysis(signature):
     ]), hide_index=True, border="horizontal")
     st.subheader("訓練 Loss 比較")
     st.caption("比較最高、最低與目前選取的參數。每個點是該輪新增的訓練損失，兩種架構各用自己的縱軸刻度。")
-    compare_extreme_losses(extremes, selected=selected_losses)
+    compare_extreme_losses(extremes, selected=selected_losses, score_label=score_label)
 
     default_word = "earnings"
 
@@ -825,18 +929,59 @@ def word_analysis(signature):
     insights = neighbor_insights(word, entry, points_by_model, signature)
     widget_suffix = f"{word}_{':'.join(dict.fromkeys(selected_runs.values()))}"
     view = None
+    all_words = False
     if any(points_by_model.values()):
         st.subheader(f"{word} 的 Top-5 近鄰")
-        st.caption("各圖只顯示本模型的 Top-5，與各自的排名表對應。"
-                   "原始 cosine 衡量近鄰和分析詞的向量相似度，並決定名次。"
-                   "在長條或資料點上停留可查看判讀依據。")
-        st.caption("下方「逐詞解讀」有關係說明及原文。共現篇數計算有提到兩個詞的訓練新聞。")
+        st.caption("原始 cosine 決定各模型的近鄰名次。排名表與下方「逐詞解讀」聚焦前 5 名。"
+                   "共現篇數計算有提到兩個詞的訓練新聞。")
         view = st.radio("圖表", ("Top-5 相似度", "PCA 空間", "t-SNE 空間"), horizontal=True, key="word_map_view")
         if view == "Top-5 相似度":
-            st.caption("長條從 0 起算。向右代表正分，向左代表負分。兩張圖使用相同的 cosine 尺度。")
+            st.caption("各圖只顯示本模型的 Top-5，與各自的排名表對應。"
+                       "長條從 0 起算。向右代表正分，向左代表負分。兩張圖使用相同的 cosine 尺度。")
         else:
-            st.caption("方塊是中心詞，圓點旁的數字是本模型的名次。兩張圖各自把這些詞投影到二維。"
-                       "跨模型比較請讀原始 cosine 與名次。")
+            scope = st.radio("投影範圍", ("前 5 詞", "全部詞"), horizontal=True, key="word_projection_limit")
+            all_words = scope == "全部詞"
+            st.caption("方塊是中心詞，前 5 名用較大的圓點標示。將游標停在點上可查看詞、名次和原始 cosine。"
+                       "兩張圖各自投影到二維，跨模型比較請讀原始 cosine 與名次。")
+            if all_words:
+                st.caption("全部詞使用各模型詞彙表中有可用向量的詞。已準備的投影可直接載入，換中心詞也會沿用座標。")
+                if view == "t-SNE 空間":
+                    st.caption("紫色虛線依同主題代表詞的位置畫圈，每張圖最多三圈。圈內也可能有其他詞，"
+                               "可在圖下展開清單核對用來畫圈的代表詞。")
+                st.caption("在圖內滾動滑鼠滾輪可縮放，按住左鍵拖曳可平移，雙擊可回到全圖。")
+            if view == "PCA 空間":
+                with st.expander("PCA 圖怎麼讀？"):
+                    st.markdown(
+                        "**X（PC1）與 Y（PC2）**　PCA 用詞向量的原有維度組合出兩個新方向。"
+                        "PC1 是詞向量分布最散的方向，PC2 是與 PC1 垂直的方向中變異最大的一個。\n\n"
+                        "**變異比例**　圖上方的百分比表示各軸保留了這批詞向量的多少變異。"
+                        "例如合計 33.4% 表示兩軸保留約三分之一的變異，問號可查看各軸的變異量原值。"
+                        "切換「前 5 詞」與「全部詞」時，參與投影的詞不同，方向和比例都可能改變。\n\n"
+                        "**圖上的距離**　兩詞在圖上靠近，表示它們沿這兩個方向的位置接近。"
+                        "其他維度的差異可能被省略，因此詞群也可能看起來混在一起。"
+                        "在圖下展開「比較這張圖中的兩個詞」，可對照 2 維距離與原始 cosine。"
+                    )
+            else:
+                st.markdown(
+                    "**為什麼詞群看起來連在一起？**\n\n"
+                    "穀物和航運會共用 `cargo`（貨物）這類詞。Word2Vec 依周邊用詞學習，"
+                    "所以 `grain`（穀物）和 `vessels`（船隻）都可以和 `cargo` 相近，兩群的近鄰就有了交集。"
+                    "t-SNE 儘量保留這些局部關係，所以兩群即使各有一塊密集區，中間仍可能有其他詞的點接起來。"
+                )
+                with st.expander("看 Reuters 原文與原始 cosine"):
+                    st.markdown(
+                        "**同一個詞怎麼用在兩個主題**　訓練新聞 #4203 寫到 `cargo of wheat`（裝載的小麥）。"
+                        "訓練新聞 #11271 則同時提到靠港船隻 `vessels` 和 `cargo handling equipment`（貨物裝卸設備）。"
+                        "預設 CBOW 的原始向量中，`cargo` 與 `grain` 的 cosine 是 **0.8140**，"
+                        "與 `vessels` 是 **0.8875**。\n\n"
+                        "**全圖怎麼看**　兩個預設模型各有 23,172 個詞，縮到全圖時點也會重疊。"
+                        "在「全部詞」可放大紫色圈附近，再用原始 cosine 和近鄰名次核對。\n\n"
+                        "**以 `wheat` 為例**　在預設 CBOW（300 維、窗口 15、5 輪）裡，"
+                        "原始 cosine 排名第一的是 `corn`（**0.9493**）。在預設 Skip-Gram"
+                        "（150 維、窗口 15、15 輪）裡，第一名是 `barley`（**0.7390**）。"
+                        "兩者都是預設模型穀物圈的代表詞。\n\n"
+                        "[t-SNE 圖的判讀示例](https://distill.pub/2016/misread-tsne/)"
+                    )
     all_rows = []
     for col, (name, label), color in zip(st.columns(2, gap="large"), WORD_MODELS.items(), COLORS):
         with col:
@@ -849,8 +994,12 @@ def word_analysis(signature):
                 st.altair_chart(neighbor_similarity_chart(word, points, color, insights), width="stretch")
             else:
                 method = "PCA" if view == "PCA 空間" else "t-SNE"
-                word_projection_panel(models[name], word, points, method, color, insights,
-                                      f"{name}_{word}_{selected_runs[name]}")
+                full_projection, plotted_points = None, points
+                if all_words:
+                    full_projection = project_vocabulary(model_signatures[name], name, method, models[name][1])
+                    plotted_points = vocabulary_neighbors(word, name, model_signatures[name], models[name])
+                word_projection_panel(models[name], word, plotted_points, method, color, insights,
+                                      f"{name}_{word}_{selected_runs[name]}", full_projection=full_projection)
             rows = []
             for point in points:
                 term = point["word"]
@@ -902,8 +1051,9 @@ def word_analysis(signature):
         st.json(metadata, expanded=False)
 
 
-def search_method_controls(options):
-    marks = {key: item[0] for key, item in reference_model_extremes(options).items()}
+def search_method_controls(options, reference_scores):
+    extremes = reference_model_extremes(options, ndcg10_by_model=reference_scores) if reference_scores else {}
+    marks = {key: item[0] for key, item in extremes.items()}
     selected_runs = {"tfidf": "正式模型"}
     method_labels = {"tfidf": METHODS["tfidf"]}
     a, b = st.columns([1, 2], gap="medium")
@@ -915,6 +1065,8 @@ def search_method_controls(options):
         st.caption("方法 B · 詞向量")
         st.markdown("### TF-IDF 加權詞向量")
         st.write("用 TF-IDF 權重平均詞向量，再比較查詢與新聞。")
+        if marks:
+            st.caption("預設選擇與「最高」「最低」標籤都依固定 10 題關鍵字查詢的單用詞向量平均 nDCG@10 決定。")
         for col, (method, label) in zip(st.columns(2), WORD_MODELS.items()):
             configs = {name: models[method] for name, models in options.items() if method in models}
             run = model_run_selectbox(col, method, configs, marks, f"search_{method}_run")
@@ -1077,7 +1229,100 @@ def search_effects_overview(groups, evaluations, models):
              "加權平均把查詢與新聞各合成一個向量，詞序與否定關係容易被弱化。")
 
 
-def search_effects(evaluations, bank, matched_query, models, results, relevant):
+def explain_fuzzy_search(report):
+    with st.expander("為什麼模糊句的 CBOW 和 Skip-Gram 表現差這麼多？"):
+        # These fixed-query ranks and contributions were checked against this comparison's inputs.
+        expected = "d352b8d6330d7a996e0fde8c1628b146e1bf84699f27780eff86de92415e81c1"
+        try:
+            verified = report is not None and sha256(COMPARISON / "manifest.json") == expected
+        except OSError:
+            verified = False
+        if not verified:
+            st.info("暫時無法核對這組模糊句案例的模型與評估版本。")
+            return
+
+        st.caption("固定案例 · CBOW v300-w15-e5 · Skip-Gram v150-w15-e15。上方成效表依目前所選模型更新。")
+        st.write("純 TF-IDF 依字面重疊計分。兩種加權方法用相同的 TF-IDF 比重，詞向量的差異會把同一句查詢帶向不同主題。")
+        st.caption("Q02-F 和 Q05-F 列出前十名符合 Reuters 主題標籤的篇數。")
+        st.table(pd.DataFrame([
+            ["Q02-F · 企業獲利", "4 / 10", "0 / 10", "8 / 10"],
+            ["Q05-F · 原油生產", "5 / 10", "5 / 10", "10 / 10"],
+            ["模糊句 10 題平均 nDCG@10", "0.5135", "0.4808", "0.7012"],
+        ], columns=["案例／指標", "純 TF-IDF", "加權 CBOW", "加權 Skip-Gram"]), hide_index=True, border="horizontal")
+
+        st.markdown(
+            "**Q02-F · 最近三個月企業扣掉費用後賺了多少？**\n\n"
+            "`How much money did businesses keep after expenses over the past three months?`\n\n"
+            "純 TF-IDF 靠 `businesses` 的字面重疊，把一篇企業財報排第 2。"
+            "加權 CBOW 裡，`money`、`keep` 等詞讓西班牙利率報導 #15552 排第 1，"
+            "Medtronic 盈餘報導 #15213 排第 91。換成 Skip-Gram，`businesses` 和 `expenses` "
+            "給盈餘報導的優勢足以反超，它升到第 1，利率報導降到第 13。"
+        )
+        st.markdown(
+            "**Q05-F · 從地下井抽出了多少？**\n\n"
+            "`How much is being pumped from underground wells?`\n\n"
+            "純 TF-IDF 把 `wells` 對到銀行名稱 Wells Fargo，前兩名都是銀行新聞。"
+            "加權 CBOW 排第 1 的是北海天然氣報導，這題以原油標籤計分。"
+            "Skip-Gram 裡 `pumped` 的第一近鄰是 `oilfields`。整句加權後，"
+            "用 `flow oil` 和 `exploratory well` 描述印尼近海油井的新聞 #20093 排第 1，"
+            "這篇和查詢的用詞沒有字面重疊。"
+        )
+        st.info("**結論**　Q02-F 和 Q05-F 合計占 Skip-Gram 平均提升約一半。"
+                "兩種加權方法能否把相關新聞排前，取決於所用詞向量。"
+                "同一批模糊句改用 CBOW `v150-w15-e15`，加權 nDCG@10 為 **0.5622**，高於純 TF-IDF 的 **0.5135**。")
+
+
+def explain_search_average(kind, report, baseline_by_query):
+    label = SEARCH_QUERY_TYPES[kind]
+    with st.expander(f"為什麼{label}查詢加權後會變好或變差？"):
+        try:
+            examples = read_json(ROOT / "resources" / "search_average_examples.json")
+            if report is None or sha256(COMPARISON / "manifest.json") != examples["comparison_manifest_sha256"]:
+                raise ValueError("The examples belong to another comparison")
+            group = examples["groups"][kind]
+            queries = {query["qid"]: query for query in report["queries"] if query["kind"] == kind}
+            runs = {(row["method"], row["run"]): row for row in report["runs"]}
+            cbow, skipgram = (runs[method, examples["runs"][method]] for method in ("cbow", "skipgram"))
+        except (OSError, ValueError, KeyError, TypeError):
+            st.info(f"暫時無法核對這組{label}案例的模型與評估版本。")
+            return
+
+        st.caption(f"固定案例 · CBOW {model_setting_label(cbow['config'])} · "
+                   f"Skip-Gram {model_setting_label(skipgram['config'])}。上方成效表依目前所選模型更新。")
+        st.caption("每題顯示前十名命中數與 nDCG@10。命中依 Reuters 主題標籤判定，名次來自完整測試集。")
+        scores = [
+            baseline_by_query,
+            {qid: cbow["per_query"][qid]["weighted"] for qid in queries},
+            {qid: skipgram["per_query"][qid]["weighted"] for qid in queries},
+        ]
+        methods = ("tfidf", "cbow", "skipgram")
+        columns = ["純 TF-IDF", SEARCH_METHOD_NAMES["cbow"], SEARCH_METHOD_NAMES["skipgram"]]
+        summary_rows = []
+        for case in group["cases"]:
+            qid = case["qid"]
+            values = [method_scores[qid] for method_scores in scores]
+            summary_rows.append([f"{qid} · {TOPICS[queries[qid]['topic']]}",
+                                 *(f"{round(row['p10'] * 10)} / 10 · {row['ndcg10']:.4f}" for row in values)])
+        summary_rows.append([f"{label} {len(queries)} 題平均 nDCG@10",
+                             *(f"{np.mean([rows[qid]['ndcg10'] for qid in queries]):.4f}" for rows in scores)])
+        st.table(pd.DataFrame(summary_rows, columns=["案例／指標", *columns]), hide_index=True, border="horizontal")
+
+        for case in group["cases"]:
+            query = queries[case["qid"]]
+            st.markdown(f"#### {query['qid']} · {query['intent']}")
+            st.markdown(f"`{query['text']}`")
+            article_rows = [
+                [f"#{article['id']} · {article['title']}", "、".join(article["topics"]) or "無標籤",
+                 *(f"第 {article['ranks'][method]:,} 名" for method in methods)]
+                for article in case["articles"]
+            ]
+            st.table(pd.DataFrame(article_rows, columns=["新聞", "Reuters 主題", *columns]),
+                     hide_index=True, border="horizontal")
+            st.markdown(case["reading"])
+        st.info(f"**結論**　{group['conclusion']}")
+
+
+def search_effects(evaluations, bank, matched_query, models, results, relevant, report):
     with st.container(border=True, key="search_effects"):
         st.markdown("### 檢索有改善嗎？")
         groups = {kind: [query for query in bank if query["kind"] == kind] for kind in SEARCH_QUERY_TYPES}
@@ -1088,7 +1333,8 @@ def search_effects(evaluations, bank, matched_query, models, results, relevant):
         if scope == overview:
             search_effects_overview(groups, evaluations, models)
             return
-        average = scope in scopes
+        kind = scopes.get(scope)
+        average = kind is not None
         if not average and matched_query is None:
             st.info("目前查詢沒有預先指定的相關主題。可切到任一查詢類型的平均，比較所選模型的成效。")
             return
@@ -1096,7 +1342,6 @@ def search_effects(evaluations, bank, matched_query, models, results, relevant):
             paired_search_effects(bank, matched_query, models)
             return
         if average:
-            kind = scopes[scope]
             queries = groups[kind]
             scores, per_query, included = search_average_scores(kind, queries, evaluations, models)
             st.caption(f"{SEARCH_QUERY_TYPES[kind]}測試納入 {len(included)}／{len(queries)} 題。三種問法共用相同測試新聞及主題判定。")
@@ -1131,6 +1376,10 @@ def search_effects(evaluations, bank, matched_query, models, results, relevant):
             st.markdown(f"以 nDCG@10 衡量前十名排序，相對於 TF-IDF，{'、'.join(outcomes)}。")
         st.table(pd.DataFrame(table), hide_index=True, border="horizontal")
         st.caption("括號為相對 TF-IDF 的差值。相關新聞以 Reuters 主題標籤判定。")
+        if kind == "fuzzy":
+            explain_fuzzy_search(report)
+        elif average:
+            explain_search_average(kind, report, per_query["tfidf"])
         explain_search_drops(scores, per_query, queries, models)
         with st.expander("指標怎麼看？"):
             explain_retrieval_metrics()
@@ -1280,12 +1529,18 @@ def embedding_weighting_example(queries, standalone, weighted, metric):
 
 def explain_weighting_winners(runs):
     with st.expander("為什麼單用最高，加權後可能換一組？"):
-        st.write("單用最高是指把詞向量等權平均後，新聞檢索分數最高。TF-IDF 重新分配各詞在平均中的比重，"
-                 "可能改變查詢與新聞向量的方向，進而改變 cosine 排序。")
-        st.write("不同參數學到的詞向量不同。高權重詞的向量若接近相關新聞中的用法，相關新聞可能往前。"
-                 "若這些詞的向量也接近其他主題，高權重可能把那些新聞推前。")
-        st.caption(f"以關鍵字 10 題的平均 nDCG@10 為例，各架構各有 {len(REFERENCE_RUNS)} 組參考參數。")
+        st.markdown(
+            "**兩欄都在比新聞排序，差在怎麼把詞合成向量。** 同一列使用同一組詞向量。"
+            "單用時，查詢和每篇新聞裡，有向量的詞每出現一次就算一份，再取平均。"
+            "加權時，TF-IDF 較高的詞在平均裡占得更多。\n\n"
+            "**名次為什麼會換？** 不同參數學到的詞向量不同。加重某個詞後，有的模型會把符合主題的新聞往前排，"
+            "有的模型則可能把其他主題的新聞帶進前十名。各組分數的變化不同，原本的第一名就可能被超過。"
+        )
+        st.caption(f"兩欄用同一批測試新聞與關鍵字 10 題的平均 nDCG@10。"
+                   f"每個架構各比較 {len(REFERENCE_RUNS)} 組。前十名命中的相關新聞越多、排得越前，分數越高。")
         tables = []
+        changed_winners = []
+        skipgram_example = None
         for method, label in WORD_MODELS.items():
             rows = rank_weighting_rows([row for row in runs if row["method"] == method], "ndcg10")
             standalone = next(row for row in rows if row["unweighted_rank"] == 1)
@@ -1294,19 +1549,87 @@ def explain_weighting_winners(runs):
                 winners, roles = [standalone], ["兩欄最高"]
             else:
                 winners, roles = [standalone, weighted], ["單用最高", "加權最高"]
+                if standalone["weighted_rank"] != 1:
+                    changed_winners.append(label)
+                if method == "skipgram":
+                    skipgram_example = standalone, weighted
             frame = embedding_weighting_table(winners, "ndcg10", "nDCG@10").drop(columns="加權差值")
             frame.insert(0, "架構", label)
             frame.insert(1, "最高欄位", roles)
             tables.append(frame)
         st.table(pd.concat(tables, ignore_index=True), hide_index=True, border="horizontal")
+        if skipgram_example is not None:
+            standalone, weighted = skipgram_example
+            st.markdown(
+                f"**看 Skip-Gram 這兩列。** 單用第一名 `{model_setting_label(standalone['config'])}` "
+                f"的分數在加權後從 **{standalone['unweighted_ndcg10']:.4f}** 變成 **{standalone['weighted_ndcg10']:.4f}**。"
+                f"另一組 `{model_setting_label(weighted['config'])}` 從 **{weighted['unweighted_ndcg10']:.4f}** "
+                f"變成 **{weighted['weighted_ndcg10']:.4f}**，因此在加權欄排第一。"
+            )
+        result = (
+            f"這 10 題中，{' 和 '.join(changed_winners)} 的單用第一名在加權後被其他組超過。"
+            if changed_winners else "這 10 題中，各架構的單用第一名在加權後仍是最高。"
+        )
+        st.info(f"**結論**　{result} TF-IDF 重新分配詞的比重，各組把相關新聞往前排的效果也會改變。"
+                "比較加權檢索的參數時，要看同一批查詢的加權 nDCG@10。")
 
 
-def explain_word_neighbors_and_retrieval(runs):
+def explain_palm_oil_ranking():
+    st.markdown("#### 棕櫚油為什麼排在原油前面？")
+    translations = {"oil": "油", "output": "產量", "prices": "價格"}
+    try:
+        # This fixed case was computed offline with the verified retrieval engine.
+        example = read_json(ROOT / "resources" / "palm_oil_ranking_example.json")
+        _, _, manifest, evaluation = completed_manifests(example["run"])
+        if example["model_manifest_sha256"] != evaluation["model_manifest_sha256"]:
+            raise ValueError("The ranking example belongs to a different model")
+        config = manifest["models"]["skipgram"]["config"]
+        query = example["query"]
+        closest = example["nearest_to_oil"]
+        crude, palm = (example["documents"][doc_id] for doc_id in ("18678", "14892"))
+        tokens = terms(query)
+        parts = np.array([[row["contributions"][token] for row in (crude, palm)] for token in tokens])
+        if not np.allclose(parts.sum(axis=0), [crude["score"], palm["score"]], rtol=0, atol=1e-9):
+            raise ValueError("Query term contributions do not match the retrieval scores")
+    except (OSError, ValueError, KeyError, TypeError, IndexError):
+        st.info("暫時無法核對這個實例的模型與搜尋分數。")
+        return
+
+    st.caption(f"固定使用 Skip-Gram · {model_setting_label(config)}（{model_setting_description(config)}）。")
+    st.markdown(f"查詢 `{query}`（油的產量與價格）。這組模型中，`oil` 的第 1 近鄰是 `{closest}`。"
+                "此例想找 Reuters 標為 `crude` 的原油新聞。")
+    st.caption("原油 #18678 · 帝國石油調漲原油牌價。棕櫚油 #14892 · 馬來西亞棕櫚油產量恐低於目標。")
+    score_gap = palm["score"] - crude["score"]
+    rows = [[f"{token}（{translations[token]}）", f"{left:+.4f}", f"{right:+.4f}", f"{right - left:+.4f}"]
+            for token, (left, right) in zip(tokens, parts, strict=True)]
+    rows.extend([
+        ["總分（cosine）", f"{crude['score']:.4f}", f"{palm['score']:.4f}", f"{score_gap:+.4f}"],
+        ["搜尋名次", f"第 {crude['rank']} 名", f"第 {palm['rank']} 名", "—"],
+    ])
+    st.table(pd.DataFrame(rows, columns=["查詢詞／結果", "原油 #18678", "棕櫚油 #14892", "棕櫚油減原油"]),
+             hide_index=True, border="horizontal")
+    st.caption(f"前三列相加就是 cosine 總分。名次來自同一查詢在 {manifest['test_documents']:,} 篇測試新聞中的完整搜尋。")
+    oil_lead = parts[0, 0] - parts[0, 1]
+    palm_lead = parts[1:, 1].sum() - parts[1:, 0].sum()
+    st.markdown(
+        f"**原油在 `oil` 這項領先 {oil_lead:.4f}。** 棕櫚油那篇也在談產量和價格，"
+        f"在 `output` 和 `prices` 合計多拿 **{palm_lead:.4f}**，所以總分反超 **{score_gap:.4f}**。"
+        "模型在 `crude oil` 和 `palm oil` 中共用 `oil` 的向量，搜尋時再把各詞加權平均。"
+    )
+
+
+def explain_word_neighbors_and_retrieval(report):
     with st.expander("為什麼近鄰詞更接近，加權檢索未必更好？"):
-        st.write("詞向量分析從一個詞出發，用 Top-5 近鄰與新聞原文理解它的用法。"
-                 "加權檢索把查詢與整篇新聞的詞向量各自做 TF-IDF 加權平均，再依兩者的 cosine 排名。"
-                 "即使一對詞更接近，其他詞仍會一起影響新聞排名。")
-        skipgram_runs = {row["run"]: row for row in runs if row["method"] == "skipgram"}
+        explain_palm_oil_ranking()
+        st.divider()
+        st.markdown("#### Q05 · 比較兩組模型的近鄰與檢索")
+        st.write("用 Q05「crude oil production」（原油生產）來看。兩組 Skip-Gram 都是 100 維、窗口 15，"
+                 "訓練輪數分別是 5 輪和 15 輪。")
+        skipgram_runs = {row["run"]: row for row in report["runs"] if row["method"] == "skipgram"}
+        query = next(row for row in report["queries"] if row["qid"] == "Q05")
+        weights = query["tfidf_weights"]
+        total_weight = sum(weights.values())
+        weight_text = "、".join(f"`{term}` **{weights[term] / total_weight:.1%}**" for term in terms(query["text"]))
         rows = []
         try:
             for name in ("grid-d100-w15-e5", "grid-d100-w15-e15"):
@@ -1325,24 +1648,35 @@ def explain_word_neighbors_and_retrieval(runs):
                     "oil 與 petroleum 的 cosine": f"{pair['cosine']:.4f}",
                     "Q05 前十名命中": f"{score['p10'] * 10:.0f} / 10",
                     "Q05 加權 nDCG@10": f"{score['ndcg10']:.4f}",
-                    "關鍵字 10 題平均": f"{result['weighted_ndcg10']:.4f}",
+                    "10 題平均加權 nDCG@10": f"{result['weighted_ndcg10']:.4f}",
                 })
         except (OSError, ValueError, KeyError, TypeError, IndexError):
             st.info("這個實例的近鄰與檢索分數暫時無法核對。")
             return
 
-        st.caption("固定實例 · Q05「crude oil production」（原油生產）。近鄰以 oil 為中心，10 題平均使用加權 nDCG@10。")
+        st.caption("近鄰以 oil 為中心。Q05 欄只評這一題，最後一欄才是關鍵字 10 題平均。")
         st.table(pd.DataFrame(rows), hide_index=True, border="horizontal")
-        st.write("這題還有 `crude` 和 `production`，兩者的 TF-IDF 比重都比 `oil` 大。"
-                 "談重油漲價的新聞 #20406，標題含有 `petroleum`，在 5 輪模型排第 7，在 15 輪模型排第 28。"
-                 "以 Reuters 的原油主題標籤計分，這篇在第 7 名時佔掉一個相關新聞的位置。")
+        five, fifteen = rows
+        st.markdown(
+            f"**1. 看兩個詞。** 5 輪的 `oil` 和 `petroleum` 比較接近，cosine 是 **{five['oil 與 petroleum 的 cosine']}**，"
+            f"略高於 15 輪的 **{fifteen['oil 與 petroleum 的 cosine']}**。這個數字只看這一對詞。\n\n"
+            f"**2. 看整句查詢和整篇新聞。** 合成查詢向量時，三個詞的 TF-IDF 比重是 {weight_text}。"
+            "`crude` 和 `production` 各比 `oil` 占得多。每篇新聞也會把自己的詞加權平均，"
+            "最後依整句查詢和整篇新聞的 cosine 排名。\n\n"
+            "**3. 看前十名的實際結果。** 新聞 #20406 標題有 `petroleum`，但 Reuters 標的是 `fuel`（燃料）。"
+            "這題以 `crude`（原油）為命中條件，所以這篇不算命中。"
+            f"5 輪把它排在第 7 名，前十名命中 **{five['Q05 前十名命中']}**。"
+            f"15 輪把它排在第 28 名，前十名命中 **{fifteen['Q05 前十名命中']}**，"
+            f"所以 Q05 的 nDCG@10 從 **{five['Q05 加權 nDCG@10']}** 提到 **{fifteen['Q05 加權 nDCG@10']}**。"
+        )
+        st.info("**結論**　近鄰的 cosine 描述兩個詞的關係。加權檢索還會合併整句查詢與整篇新聞的其他用詞，"
+                "所以棕櫚油能靠產量和價格排前，Q05 也由近鄰略遠的 15 輪模型命中更多原油新聞。"
+                "檢索有沒有改善，要用同一查詢比較相關新聞的命中數和位置。")
 
 
-def embedding_weighting_panel(selected_runs, options, models, evaluations, matched_query):
+def embedding_weighting_panel(report, selected_runs, options, models, evaluations, matched_query):
     st.subheader("詞向量參數表現")
-    try:
-        report = read_comparison()
-    except (ValueError, OSError, KeyError, TypeError):
+    if report is None:
         st.info("完成並驗證參考組的詞向量加權比較後，這裡會顯示兩種排名。")
         return
 
@@ -1360,6 +1694,7 @@ def embedding_weighting_panel(selected_runs, options, models, evaluations, match
         st.info("這個查詢還沒有預先指定的 Reuters 主題。可提交一個範例查詢，或改看任一題型的平均分數。")
         with st.expander("指標怎麼算？"):
             explain_retrieval_metrics()
+        explain_word_neighbors_and_retrieval(report)
         return
 
     if single:
@@ -1377,7 +1712,7 @@ def embedding_weighting_panel(selected_runs, options, models, evaluations, match
             st.table(pd.DataFrame([{"題號": query["qid"], "英文查詢": query["text"], "中文意思": query["intent"]}
                                    for query in queries]), hide_index=True, border="horizontal")
     st.caption(f"每欄依 {score_label} 在同一架構的 {len(REFERENCE_RUNS)} 組參考參數中排名。同分共用名次。")
-    st.write("單用把詞向量等權平均，加權按 TF-IDF 分配比重。上方模型選單的「最高」「最低」依關鍵字 10 題的平均加權 nDCG@10。")
+    st.write("單用把詞向量等權平均，加權按 TF-IDF 分配比重。")
     rankings, examples = {}, []
     for col, (method, label) in zip(st.columns(2, gap="medium"), WORD_MODELS.items()):
         rows = [weighting_row_for_queries(row, queries) for row in report["runs"] if row["method"] == method]
@@ -1401,7 +1736,7 @@ def embedding_weighting_panel(selected_runs, options, models, evaluations, match
     with st.expander("指標怎麼算？"):
         explain_retrieval_metrics()
     explain_weighting_winners(report["runs"])
-    explain_word_neighbors_and_retrieval(report["runs"])
+    explain_word_neighbors_and_retrieval(report)
     for standalone, weighted in examples:
         embedding_weighting_example(queries, standalone, weighted, metric)
     with st.expander("查看所有參數組合的兩種名次"):
@@ -1409,10 +1744,58 @@ def embedding_weighting_panel(selected_runs, options, models, evaluations, match
             tab.dataframe(embedding_weighting_table(rows, metric, metric_label), hide_index=True, width="stretch")
 
 
+def search_final_conclusion(bank, evaluations, models, selected_runs, method_labels, report):
+    with st.container(border=True, key="search_final_conclusion"):
+        st.markdown("### TF-IDF 和 TF-IDF 加權詞向量，哪個好？")
+        st.caption("目前比較 · " + " · ".join(method_labels.values()))
+        st.caption("各問法用同一批測試新聞，依 Reuters 主題標籤評分。表中是平均 nDCG@10，括號是相對純 TF-IDF 的差值。")
+
+        # Use the verified comparison for reference runs and the regular scorer for other selections.
+        references = {(row["method"], row["run"]): row["per_query"] for row in report["runs"]} if report else {}
+        saved = {method: references[method, run] for method, run in selected_runs.items()
+                 if (method, run) in references}
+        live_models = {method: model for method, model in models.items() if method not in saved}
+        live_evaluations = {method: evaluations[method] for method in live_models}
+        names = {**SEARCH_METHOD_NAMES, "tfidf": "純 TF-IDF"}
+        common_winners = {names[method] for method in models}
+        table = []
+        for kind, label in SEARCH_QUERY_TYPES.items():
+            queries = [query for query in bank if query["kind"] == kind]
+            scores, _, included = search_average_scores(kind, queries, live_evaluations, live_models)
+            values = {method: row["ndcg10"] for method, row in scores.items()}
+            values.update({method: float(np.mean([rows[qid]["weighted"]["ndcg10"] for qid in included]))
+                           if included else None for method, rows in saved.items()})
+            rounded = {method: round(value, 4) for method, value in values.items() if value is not None}
+            top = max(rounded.values(), default=None)
+            winners = [names[method] for method, value in rounded.items() if value == top]
+            common_winners.intersection_update(winners)
+            table.append({
+                "問法": f"{label} {len(included)}／{len(queries)} 題",
+                **{names[method]: format_search_score(values[method], None if method == "tfidf" else values["tfidf"])
+                   for method in models},
+                "此問法最高": ("並列 " if len(winners) > 1 else "") + ("、".join(winners) or "—"),
+            })
+        st.dataframe(pd.DataFrame(table), hide_index=True, width="stretch")
+
+        st.markdown(
+            "- **查詢用字明確，新聞也使用同樣的詞。** 純 TF-IDF 可直接利用字面重疊。"
+            "例如查詢 `company acquisition merger`，新聞裡的 `merger` 已經是明確的併購線索。\n"
+            "- **同一主題有不同說法。** 加權詞向量可以補上字面配不到的線索。"
+            "例如油井查詢用 `pumped` 和 `wells`，原油新聞可能寫 `flow oil` 和 `exploratory well`。\n"
+            "- **關鍵字加上描述。** 描述指向同一主題時，能幫忙找出用詞不同的新聞。"
+            "描述落在相近但不同的主題時，也會把它們往前推，例如 `deficit` 同時出現在貿易逆差和經常帳赤字的報導。"
+        )
+        result = (f"目前的 **{next(iter(common_winners))}** 在三種問法的平均 nDCG@10 都達到最高。"
+                  if len(common_winners) == 1 else "選擇方法時，對照你常用的問法和該列的最高分。")
+        st.info(f"**結論**　{result} 加權詞向量有沒有幫助，要看相關新聞在前十名命中了幾篇、排在多前面。"
+                "單詞加權平均容易弱化詞序與否定，因此還要用實際新聞名次核對。")
+
+
 def news_search(engine, signature):
     heading("03 / RETRIEVAL", "新聞搜尋與比較", "比較相同查詢的新聞排名，再用固定實驗檢查檢索成效。")
     options = website_experiment_configs()
-    selected_runs, method_labels = search_method_controls(options)
+    report, reference_scores = read_weighting_reference()
+    selected_runs, method_labels = search_method_controls(options, reference_scores)
     bank = search_query_bank()
     default = bank[0]
     search_query_controls(bank, default["qid"])
@@ -1460,17 +1843,28 @@ def news_search(engine, signature):
                 if not status["valid_query"]:
                     st.info("查詢沒有可用向量，無法產生排名。")
                     continue
+                top10 = ranked[:10]
                 if matched:
-                    hits = sum(row["id"] in relevant for row in ranked[:10])
+                    hits = sum(row["id"] in relevant for row in top10)
                     st.caption(f"前十名有 {hits} 篇符合「{TOPICS[matched['topic']]}」主題。")
-                frame = pd.DataFrame(ranked[:10]).rename(columns={"rank": "名次", "id": "新聞 ID", "score": "cosine", "title": "標題"})
+                frame = pd.DataFrame([
+                    {
+                        "名次": row["rank"],
+                        "新聞 ID": row["id"],
+                        "cosine": row["score"],
+                        "主題": "、".join(engine.by_id[row["id"]]["topics"]) or "無標籤",
+                        "標題": row["title"],
+                    }
+                    for row in top10
+                ])
                 st.dataframe(frame, hide_index=True, width="stretch",
                              column_config={"名次": st.column_config.NumberColumn(width=42),
                                             "新聞 ID": st.column_config.TextColumn(width=61),
                                             "cosine": st.column_config.NumberColumn(format="%.4f", width=58),
+                                            "主題": st.column_config.TextColumn(width=86, help="每篇新聞的 Reuters 主題標籤。"),
                                             "標題": st.column_config.TextColumn(width=200)})
                 download_rows.extend({"query": query, "method": method, "model": method_labels[method],
-                                      "run": selected_runs[method], **row} for row in ranked[:10])
+                                      "run": selected_runs[method], **row} for row in top10)
     union = list(dict.fromkeys(row["id"] for ranked, _ in results.values() for row in ranked[:10]))
     with tabs[1]:
         ranks = {method: {r["id"]: r["rank"] for r in ranked} for method, (ranked, _) in results.items()}
@@ -1483,8 +1877,8 @@ def news_search(engine, signature):
     evaluations = {"tfidf": baseline, **{method: saved_runs[run] for method, run in selected_runs.items()
                                         if method != "tfidf"}}
     models = {method: (engines[run], signatures[run]) for method, run in selected_runs.items()}
-    search_effects(evaluations, bank, matched, models, results, relevant)
-    embedding_weighting_panel(selected_runs, options, models, evaluations, matched)
+    search_effects(evaluations, bank, matched, models, results, relevant, report)
+    embedding_weighting_panel(report, selected_runs, options, models, evaluations, matched)
     with st.expander("查詢詞與詞向量涵蓋"):
         rows = []
         for method, (_, status) in results.items():
@@ -1504,6 +1898,7 @@ def news_search(engine, signature):
         st.caption("權重涵蓋率是可用詞向量的 TF-IDF 權重比例。零向量不參與排名，其餘候選保留零分與負分。")
     if download_rows:
         st.download_button("下載 Top 10", csv_bytes(pd.DataFrame(download_rows)), "search-top10.csv", "text/csv")
+    search_final_conclusion(bank, evaluations, models, selected_runs, method_labels, report)
     if union:
         st.divider()
         st.subheader("閱讀結果新聞")

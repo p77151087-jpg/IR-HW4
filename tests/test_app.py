@@ -163,6 +163,10 @@ def test_full_pca_projects_all_model_words_and_keeps_top_five_analysis(word_app)
         assert points.iloc[1:6]["cosine"].tolist() == pytest.approx(table["cosine"].tolist())
 
     key = f"pca_first_cbow_{center}_{DEFAULT_MODEL_RUN}"
+    assert all(element.key != key for element in app.selectbox)
+    app.session_state[f"projection_pair_cbow_{center}_{DEFAULT_MODEL_RUN}"] = True
+    app.run()
+    assert not app.exception
     last_neighbor = app.selectbox(key=key).options[-1]
     app.selectbox(key=key).select(last_neighbor).run()
     assert not app.exception and app.selectbox(key=key).value == last_neighbor
